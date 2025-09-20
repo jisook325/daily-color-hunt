@@ -9,15 +9,15 @@ let mediaStream = null;
 
 // 컬러 정보
 const COLORS = {
-  red: { hex: '#FF0000', korean: '빨강' },
-  orange: { hex: '#FF8C00', korean: '주황' },
-  yellow: { hex: '#FFD700', korean: '노랑' },
-  green: { hex: '#00FF00', korean: '초록' },
-  blue: { hex: '#0066FF', korean: '파랑' },
-  indigo: { hex: '#4B0082', korean: '남색' },
-  purple: { hex: '#8A2BE2', korean: '보라' },
-  white: { hex: '#FFFFFF', korean: '흰색' },
-  black: { hex: '#000000', korean: '검정' }
+  red: { hex: '#FFB3B3', english: 'Soft Coral', korean: '빨강' },
+  orange: { hex: '#FFCC99', english: 'Warm Peach', korean: '주황' },
+  yellow: { hex: '#FFF2CC', english: 'Cream Yellow', korean: '노랑' },
+  green: { hex: '#C6E2C7', english: 'Sage Green', korean: '초록' },
+  blue: { hex: '#B3D3FF', english: 'Sky Blue', korean: '파랑' },
+  indigo: { hex: '#C7B3EB', english: 'Lavender', korean: '남색' },
+  purple: { hex: '#E0B3FF', english: 'Soft Violet', korean: '보라' },
+  white: { hex: '#FEFEFE', english: 'Off White', korean: '흰색' },
+  black: { hex: '#2D2D2D', english: 'Charcoal', korean: '검정' }
 };
 
 // 앱 초기화

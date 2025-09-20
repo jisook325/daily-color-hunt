@@ -5,15 +5,15 @@ import { renderer } from './renderer'
 
 // Color constants definition (Rainbow 7 colors + white + black)
 const COLORS = [
-  { name: 'red', hex: '#FF0000', english: 'Red', korean: '빨강' },
-  { name: 'orange', hex: '#FF8C00', english: 'Orange', korean: '주황' },
-  { name: 'yellow', hex: '#FFD700', english: 'Yellow', korean: '노랑' },
-  { name: 'green', hex: '#00FF00', english: 'Green', korean: '초록' },
-  { name: 'blue', hex: '#0066FF', english: 'Blue', korean: '파랑' },
-  { name: 'indigo', hex: '#4B0082', english: 'Indigo', korean: '남색' },
-  { name: 'purple', hex: '#8A2BE2', english: 'Purple', korean: '보라' },
-  { name: 'white', hex: '#FFFFFF', english: 'White', korean: '흰색' },
-  { name: 'black', hex: '#000000', english: 'Black', korean: '검정' }
+  { name: 'red', hex: '#FFB3B3', english: 'Soft Coral', korean: '빨강' },
+  { name: 'orange', hex: '#FFCC99', english: 'Warm Peach', korean: '주황' },
+  { name: 'yellow', hex: '#FFF2CC', english: 'Cream Yellow', korean: '노랑' },
+  { name: 'green', hex: '#C6E2C7', english: 'Sage Green', korean: '초록' },
+  { name: 'blue', hex: '#B3D3FF', english: 'Sky Blue', korean: '파랑' },
+  { name: 'indigo', hex: '#C7B3EB', english: 'Lavender', korean: '남색' },
+  { name: 'purple', hex: '#E0B3FF', english: 'Soft Violet', korean: '보라' },
+  { name: 'white', hex: '#FEFEFE', english: 'Off White', korean: '흰색' },
+  { name: 'black', hex: '#2D2D2D', english: 'Charcoal', korean: '검정' }
 ];
 
 type Bindings = {

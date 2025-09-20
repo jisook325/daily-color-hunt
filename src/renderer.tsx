@@ -71,15 +71,15 @@ export const renderer = jsxRenderer(({ children, ...props }) => {
               theme: {
                 extend: {
                   colors: {
-                    'color-red': '#FF0000',
-                    'color-orange': '#FF8C00', 
-                    'color-yellow': '#FFD700',
-                    'color-green': '#00FF00',
-                    'color-blue': '#0066FF',
-                    'color-indigo': '#4B0082',
-                    'color-purple': '#8A2BE2',
-                    'color-white': '#FFFFFF',
-                    'color-black': '#000000'
+                    'color-red': '#FFB3B3',
+                    'color-orange': '#FFCC99', 
+                    'color-yellow': '#FFF2CC',
+                    'color-green': '#C6E2C7',
+                    'color-blue': '#B3D3FF',
+                    'color-indigo': '#C7B3EB',
+                    'color-purple': '#E0B3FF',
+                    'color-white': '#FEFEFE',
+                    'color-black': '#2D2D2D'
                   }
                 }
               }
