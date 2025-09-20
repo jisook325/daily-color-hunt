@@ -378,29 +378,58 @@ function openCamera() {
   }
 }
 
-// 특정 위치 카메라 열기
+// 특정 위치 카메라 열기 (전체 화면)
 function openCameraForPosition(position) {
-  showModal(`
-    <div class="text-center">
-      <h3 class="text-lg font-bold mb-4">사진 ${position} 촬영</h3>
-      <p class="text-gray-600 mb-4">${COLORS[currentColor].korean} 색상을 찾아 촬영해주세요!</p>
+  // 현재 배경색 유지
+  const colorInfo = COLORS[currentColor];
+  const isLightColor = ['yellow', 'white'].includes(currentColor);
+  
+  // 전체 화면 카메라 인터페이스로 변경
+  const app = document.getElementById('app');
+  app.innerHTML = `
+    <div class="fullscreen-camera animate-fade-in">
+      <!-- 카메라 뷰 -->
+      <video id="cameraPreview" class="fullscreen-video" autoplay playsinline></video>
       
-      <video id="cameraPreview" class="camera-preview mb-4" autoplay playsinline></video>
+      <!-- 상단 컨트롤 -->
+      <div class="camera-header">
+        <button onclick="closeCameraView()" class="camera-back-btn">
+          <i class="fas fa-arrow-left"></i>
+        </button>
+        <div class="camera-info">
+          <span class="photo-number">Photo ${position}</span>
+          <span class="color-name">Find ${colorInfo.english}</span>
+        </div>
+      </div>
       
-      <div class="camera-controls">
-        <button onclick="closeModal(); stopCamera();" class="btn btn-secondary">
-          취소
-        </button>
-        <button onclick="capturePhoto(${position})" class="capture-btn">
-          <i class="fas fa-camera"></i>
-        </button>
+      <!-- 하단 컨트롤 -->
+      <div class="camera-footer">
+        <div class="camera-controls-fullscreen">
+          <button onclick="closeCameraView()" class="cancel-btn-fullscreen">
+            <i class="fas fa-times"></i>
+          </button>
+          
+          <button onclick="capturePhoto(${position})" class="capture-btn-fullscreen">
+            <div class="capture-circle">
+              <div class="capture-inner"></div>
+            </div>
+          </button>
+          
+          <div class="camera-spacer"></div>
+        </div>
       </div>
       
       <canvas id="captureCanvas" style="display: none;"></canvas>
     </div>
-  `);
+  `;
   
   startCamera();
+}
+
+// 카메라 뷰 닫기
+function closeCameraView() {
+  stopCamera();
+  showCollageScreen();
 }
 
 // 카메라 시작
@@ -468,9 +497,9 @@ function capturePhoto(position) {
   // 서버에 저장
   savePhoto(position, imageData, thumbnailData);
   
-  // 카메라 정지 및 모달 닫기
+  // 카메라 정지 및 화면 닫기
   stopCamera();
-  closeModal();
+  closeCameraView();
 }
 
 // 사진 저장
