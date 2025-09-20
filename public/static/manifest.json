@@ -1,11 +1,11 @@
 {
-  "name": "Color Hunt - 컬러 콜라주",
+  "name": "💖 Color Hunt - 컬러 콜라주",
   "short_name": "Color Hunt",
   "description": "오늘의 컬러를 찾아 9장의 사진으로 콜라주를 만들어보세요!",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
-  "theme_color": "#FFD700",
+  "theme_color": "#E53E3E",
   "orientation": "portrait",
   "scope": "/",
   "lang": "ko",
@@ -22,15 +22,21 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable any"
-    }
-  ],
-  "screenshots": [
+    },
     {
-      "src": "/static/screenshot-mobile.png",
-      "sizes": "375x812",
-      "type": "image/png",
-      "form_factor": "narrow",
-      "label": "Color Hunt 모바일 화면"
+      "src": "/static/favicon-48x48.png",
+      "sizes": "48x48",
+      "type": "image/png"
+    },
+    {
+      "src": "/static/favicon-32x32.png",
+      "sizes": "32x32",
+      "type": "image/png"
+    },
+    {
+      "src": "/static/favicon-16x16.png",
+      "sizes": "16x16",
+      "type": "image/png"
     }
   ],
   "shortcuts": [

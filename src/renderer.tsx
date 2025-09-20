@@ -9,13 +9,16 @@ export const renderer = jsxRenderer(({ children }) => {
         <title>🎨 Color Hunt - 오늘의 컬러 찾기</title>
         
         {/* PWA 메타데이터 */}
-        <meta name="theme-color" content="#FFD700" />
+        <meta name="theme-color" content="#E53E3E" />
         <meta name="description" content="오늘의 컬러를 찾아 9장의 사진으로 콜라주를 만들어보세요!" />
         
         {/* 아이콘 및 매니페스트 */}
         <link rel="manifest" href="/static/manifest.json" />
-        <link rel="icon" href="/static/favicon.ico" />
-        <link rel="apple-touch-icon" href="/static/icon-192x192.png" />
+        <link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32x32.png" />
+        <link rel="icon" type="image/png" sizes="16x16" href="/static/favicon-16x16.png" />
+        <link rel="icon" type="image/png" sizes="48x48" href="/static/favicon-48x48.png" />
+        <link rel="apple-touch-icon" sizes="192x192" href="/static/icon-192x192.png" />
+        <link rel="apple-touch-icon" sizes="512x512" href="/static/icon-512x512.png" />
         
         {/* CSS 라이브러리 */}
         <script src="https://cdn.tailwindcss.com"></script>

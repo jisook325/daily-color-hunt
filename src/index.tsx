@@ -18,6 +18,7 @@ const COLORS = [
 
 type Bindings = {
   DB: D1Database;
+  R2: R2Bucket;
 }
 
 const app = new Hono<{ Bindings: Bindings }>()
@@ -116,15 +117,30 @@ app.get('/api/session/current/:userId', async (c) => {
     ORDER BY position ASC
   `).bind(session.id).all();
 
+  // 사진 데이터에 올바른 URL 추가 (R2 또는 Base64)
+  const processedPhotos = (photos.results || []).map(photo => {
+    if (photo.image_url && photo.thumbnail_url) {
+      // R2 방식 - API 엔드포인트 사용
+      return {
+        ...photo,
+        image_data: `/api/image/${photo.id}/original`,
+        thumbnail_data: `/api/image/${photo.id}/thumbnail`
+      };
+    } else {
+      // 기존 Base64 방식 유지
+      return photo;
+    }
+  });
+
   return c.json({ 
     session: {
       ...session,
-      photos: photos.results || []
+      photos: processedPhotos
     }
   });
 });
 
-// 4. 사진 추가 API
+// 4. 사진 추가 API (R2 스토리지 사용)
 app.post('/api/photo/add', async (c) => {
   const { env } = c;
   const { sessionId, position, imageData, thumbnailData } = await c.req.json();
@@ -135,33 +151,146 @@ app.post('/api/photo/add', async (c) => {
 
   const photoId = generateId();
 
-  // 기존 위치의 사진이 있다면 삭제
-  await env.DB.prepare(`
-    DELETE FROM photos WHERE session_id = ? AND position = ?
-  `).bind(sessionId, position).run();
+  try {
+    // 기존 사진이 있다면 R2에서 삭제
+    const existingPhoto = await env.DB.prepare(`
+      SELECT * FROM photos WHERE session_id = ? AND position = ?
+    `).bind(sessionId, position).first();
 
-  // 새 사진 추가
-  await env.DB.prepare(`
-    INSERT INTO photos (id, session_id, position, image_data, thumbnail_data)
-    VALUES (?, ?, ?, ?, ?)
-  `).bind(photoId, sessionId, position, imageData, thumbnailData).run();
+    if (existingPhoto) {
+      // R2에서 기존 파일들 삭제
+      try {
+        await env.R2.delete(`photos/${existingPhoto.id}_original.jpg`);
+        await env.R2.delete(`photos/${existingPhoto.id}_thumbnail.jpg`);
+      } catch (e) {
+        console.log('기존 파일 삭제 실패 (무시):', e);
+      }
+      
+      // DB에서 기존 레코드 삭제
+      await env.DB.prepare(`
+        DELETE FROM photos WHERE session_id = ? AND position = ?
+      `).bind(sessionId, position).run();
+    }
 
-  // 세션 업데이트 시간 갱신
-  await env.DB.prepare(`
-    UPDATE collage_sessions SET updated_at = CURRENT_TIMESTAMP WHERE id = ?
-  `).bind(sessionId).run();
+    // Base64 데이터를 Uint8Array로 변환
+    const originalImageBuffer = Uint8Array.from(atob(imageData.split(',')[1]), c => c.charCodeAt(0));
+    const thumbnailImageBuffer = Uint8Array.from(atob(thumbnailData.split(',')[1]), c => c.charCodeAt(0));
 
-  return c.json({ photoId, success: true });
+    // R2에 이미지 저장
+    const originalKey = `photos/${photoId}_original.jpg`;
+    const thumbnailKey = `photos/${photoId}_thumbnail.jpg`;
+
+    await Promise.all([
+      env.R2.put(originalKey, originalImageBuffer, {
+        httpMetadata: {
+          contentType: 'image/jpeg',
+        },
+        customMetadata: {
+          sessionId: sessionId,
+          position: position.toString(),
+          type: 'original'
+        }
+      }),
+      env.R2.put(thumbnailKey, thumbnailImageBuffer, {
+        httpMetadata: {
+          contentType: 'image/jpeg',
+        },
+        customMetadata: {
+          sessionId: sessionId,
+          position: position.toString(),
+          type: 'thumbnail'
+        }
+      })
+    ]);
+
+    // DB에 메타데이터만 저장 (R2 키 경로 저장)
+    await env.DB.prepare(`
+      INSERT INTO photos (id, session_id, position, image_url, thumbnail_url)
+      VALUES (?, ?, ?, ?, ?)
+    `).bind(photoId, sessionId, position, originalKey, thumbnailKey).run();
+
+    // 세션 업데이트 시간 갱신
+    await env.DB.prepare(`
+      UPDATE collage_sessions SET updated_at = CURRENT_TIMESTAMP WHERE id = ?
+    `).bind(sessionId).run();
+
+    return c.json({ 
+      photoId, 
+      success: true,
+      originalUrl: `/api/image/${photoId}/original`,
+      thumbnailUrl: `/api/image/${photoId}/thumbnail`
+    });
+
+  } catch (error) {
+    console.error('사진 저장 오류:', error);
+    return c.json({ error: 'Failed to save photo' }, 500);
+  }
 });
 
-// 5. 사진 삭제 API
+// 5. 이미지 조회 API (R2에서 이미지 반환)
+app.get('/api/image/:photoId/:type', async (c) => {
+  const { env } = c;
+  const photoId = c.req.param('photoId');
+  const type = c.req.param('type'); // 'original' 또는 'thumbnail'
+
+  try {
+    const photo = await env.DB.prepare(`
+      SELECT * FROM photos WHERE id = ?
+    `).bind(photoId).first();
+
+    if (!photo) {
+      return c.notFound();
+    }
+
+    const imageKey = type === 'original' ? photo.image_url : photo.thumbnail_url;
+    const imageObject = await env.R2.get(imageKey);
+
+    if (!imageObject) {
+      return c.notFound();
+    }
+
+    return new Response(imageObject.body, {
+      headers: {
+        'Content-Type': 'image/jpeg',
+        'Cache-Control': 'public, max-age=31536000', // 1년 캐싱
+        'ETag': imageObject.etag
+      }
+    });
+
+  } catch (error) {
+    console.error('이미지 조회 오류:', error);
+    return c.json({ error: 'Failed to fetch image' }, 500);
+  }
+});
+
+// 6. 사진 삭제 API (R2 파일도 함께 삭제)
 app.delete('/api/photo/:photoId', async (c) => {
   const { env } = c;
   const photoId = c.req.param('photoId');
 
-  await env.DB.prepare(`DELETE FROM photos WHERE id = ?`).bind(photoId).run();
+  try {
+    // DB에서 사진 정보 조회
+    const photo = await env.DB.prepare(`
+      SELECT * FROM photos WHERE id = ?
+    `).bind(photoId).first();
 
-  return c.json({ success: true });
+    if (photo) {
+      // R2에서 파일 삭제
+      await Promise.all([
+        env.R2.delete(photo.image_url),
+        env.R2.delete(photo.thumbnail_url)
+      ]);
+    }
+
+    // DB에서 레코드 삭제
+    await env.DB.prepare(`DELETE FROM photos WHERE id = ?`).bind(photoId).run();
+
+    return c.json({ success: true });
+
+  } catch (error) {
+    console.error('사진 삭제 오류:', error);
+    return c.json({ error: 'Failed to delete photo' }, 500);
+  }
 });
 
 // 6. 콜라주 완성 API

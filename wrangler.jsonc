@@ -12,5 +12,11 @@
       "database_name": "color-hunt-db",
       "database_id": "0a136d0a-f20e-431d-b802-a95903a17f3d"
     }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "R2",
+      "bucket_name": "color-hunt-images"
+    }
   ]
 }
