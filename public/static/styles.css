@@ -527,3 +527,240 @@ body {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
 }
+
+/* 새로운 모던 콜라주 화면 스타일 */
+.modern-collage-screen {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding: 24px 16px;
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+.collage-header {
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.date-display {
+  font-size: 14px;
+  opacity: 0.8;
+  margin-bottom: 12px;
+  font-weight: 500;
+}
+
+.color-question {
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 20px;
+  line-height: 1.3;
+}
+
+.progress-container {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  justify-content: center;
+}
+
+.progress-track {
+  flex: 1;
+  max-width: 200px;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progress-fill-modern {
+  height: 100%;
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: 4px;
+  transition: width 0.4s ease;
+}
+
+.progress-text {
+  font-size: 14px;
+  font-weight: 600;
+  opacity: 0.9;
+  min-width: 40px;
+  text-align: center;
+}
+
+.photo-grid-modern {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 32px;
+  max-width: 280px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.photo-grid-modern .photo-slot {
+  aspect-ratio: 1;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.2);
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.photo-grid-modern .photo-slot:hover {
+  transform: scale(1.02);
+  border-color: rgba(255, 255, 255, 0.6);
+}
+
+.photo-grid-modern .photo-slot.filled {
+  border-color: rgba(255, 255, 255, 0.8);
+}
+
+.photo-grid-modern .photo-slot img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 8px;
+}
+
+.photo-grid-modern .camera-icon {
+  font-size: 20px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.collage-actions {
+  margin-top: auto;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.main-action-btn {
+  width: 100%;
+  padding: 16px 24px;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  color: inherit;
+  backdrop-filter: blur(10px);
+}
+
+.main-action-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+}
+
+.secondary-actions {
+  display: flex;
+  justify-content: center;
+  gap: 32px;
+}
+
+.text-action-btn {
+  background: none;
+  border: none;
+  color: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  opacity: 0.7;
+  cursor: pointer;
+  transition: opacity 0.3s ease;
+  padding: 8px;
+}
+
+.text-action-btn:hover {
+  opacity: 1;
+}
+
+/* 사진 상세보기 화면 스타일 */
+.photo-detail-screen {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding: 24px 16px;
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+.photo-detail-header {
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.photo-title {
+  font-size: 20px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.photo-display-container {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 32px;
+}
+
+.photo-display-frame {
+  width: 100%;
+  max-width: 300px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  padding: 12px;
+  backdrop-filter: blur(10px);
+}
+
+.photo-display-image {
+  width: 100%;
+  height: auto;
+  border-radius: 12px;
+  display: block;
+}
+
+.photo-detail-actions {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+}
+
+.detail-action-btn {
+  padding: 14px 24px;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  color: inherit;
+  backdrop-filter: blur(10px);
+  min-width: 100px;
+}
+
+.detail-action-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0,0,0,0.2);
+}
+
+/* 반응형 개선 */
+@media (max-width: 400px) {
+  .modern-collage-screen,
+  .photo-detail-screen {
+    padding: 20px 12px;
+  }
+  
+  .photo-grid-modern {
+    max-width: 260px;
+    gap: 6px;
+  }
+  
+  .color-question {
+    font-size: 18px;
+  }
+}

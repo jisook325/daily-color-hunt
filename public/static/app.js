@@ -223,55 +223,51 @@ function showCollageScreen() {
   const buttonStyle = isLightColor ? 'dark' : 'light';
   
   const app = document.getElementById('app');
+  
+  // 현재 날짜 생성
+  const currentDate = new Date().toISOString().split('T')[0];
+  
   app.innerHTML = `
-    <div class="animate-fade-in p-4 text-center" style="color: ${textColor}">
-      <!-- 헤더 -->
-      <div class="mb-6">
-        <h2 class="text-xl font-bold mb-2">
-          Find ${colorInfo.english}
-        </h2>
-        <p class="text-sm opacity-70 mb-2">${photoCount}/9 completed</p>
+    <div class="modern-collage-screen animate-fade-in" style="color: ${textColor}">
+      <!-- 상단 정보 -->
+      <div class="collage-header">
+        <div class="date-display">${currentDate}</div>
+        <h1 class="color-question">What is your ${colorInfo.english}?</h1>
         
         <!-- 프로그레스 바 -->
-        <div class="progress-bar bg-black bg-opacity-20 rounded-full h-2 w-full mb-4">
-          <div class="progress-fill bg-white bg-opacity-80 h-full rounded-full transition-all duration-300" style="width: ${progress}%"></div>
+        <div class="progress-container">
+          <div class="progress-track">
+            <div class="progress-fill-modern" style="width: ${progress}%"></div>
+          </div>
+          <div class="progress-text">${photoCount} / 9</div>
         </div>
       </div>
       
       <!-- 사진 그리드 -->
-      <div class="color-grid mb-6 mx-auto" id="photoGrid" style="max-width: 300px;">
+      <div class="photo-grid-modern" id="photoGrid">
         ${generateSequentialPhotoGrid()}
       </div>
       
-      <!-- 하단 버튼들 -->
-      <div class="space-y-3">
+      <!-- 하단 액션 -->
+      <div class="collage-actions">
         ${photoCount === 9 ? `
-          <button onclick="completeCollage()" class="btn btn-${buttonStyle} w-full">
-            <i class="fas fa-save mr-2"></i>
+          <button onclick="completeCollage()" class="main-action-btn complete-btn" style="background-color: rgba(255,255,255,0.2); border: 2px solid rgba(255,255,255,0.8);">
             Complete Collage
           </button>
         ` : `
-          <button onclick="openCamera()" class="btn btn-${buttonStyle} w-full">
-            <i class="fas fa-camera mr-2"></i>
-            Take Photo ${photoCount + 1}
+          <button onclick="openCamera()" class="main-action-btn photo-btn" style="background-color: rgba(255,255,255,0.2); border: 2px solid rgba(255,255,255,0.8);">
+            Take a picture ${photoCount + 1}
           </button>
         `}
         
-        <div class="flex gap-2">
-          <button onclick="showPreview()" class="btn btn-outline-${buttonStyle} flex-1">
-            <i class="fas fa-eye mr-2"></i>
-            Preview
+        <div class="secondary-actions">
+          <button onclick="resetSession()" class="text-action-btn">
+            Reset
           </button>
-          <button onclick="showHistoryScreen()" class="btn btn-outline-${buttonStyle} flex-1">
-            <i class="fas fa-history mr-2"></i>
+          <button onclick="showHistoryScreen()" class="text-action-btn">
             History
           </button>
         </div>
-        
-        <button onclick="resetSession()" class="btn btn-muted w-full opacity-60 hover:opacity-80 transition-opacity" style="background-color: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3);">
-          <i class="fas fa-redo mr-2"></i>
-          Start Over
-        </button>
       </div>
     </div>
   `;
@@ -339,7 +335,7 @@ function handleSlotClick(position) {
   }
 }
 
-// 사진 상세 보기
+// 사진 상세 보기 (새로운 전체 화면 디자인)
 function showPhotoDetail(position) {
   const slot = document.getElementById(`slot-${position}`);
   const img = slot.querySelector('img');
@@ -347,23 +343,44 @@ function showPhotoDetail(position) {
   
   const photoId = slot.getAttribute('data-photo-id');
   
-  showModal(`
-    <div class="text-center">
-      <h3 class="text-lg font-bold mb-4">사진 ${position}</h3>
-      <img src="${img.src}" alt="Photo ${position}" class="w-full max-w-md mx-auto rounded-lg mb-4">
+  // 현재 배경색 유지
+  const colorInfo = COLORS[currentColor];
+  const isLightColor = ['yellow', 'white'].includes(currentColor);
+  const textColor = isLightColor ? '#2D2D2D' : '#FFFFFF';
+  
+  const app = document.getElementById('app');
+  app.innerHTML = `
+    <div class="photo-detail-screen animate-fade-in" style="background: ${colorInfo.hex}; color: ${textColor};">
+      <!-- 상단 제목 -->
+      <div class="photo-detail-header">
+        <h2 class="photo-title">Picture ${position}</h2>
+      </div>
       
-      <div class="flex gap-2 justify-center">
-        <button onclick="closeModal()" class="btn btn-secondary">
+      <!-- 중앙 사진 -->
+      <div class="photo-display-container">
+        <div class="photo-display-frame">
+          <img src="${img.src}" alt="Picture ${position}" class="photo-display-image">
+        </div>
+      </div>
+      
+      <!-- 하단 액션 버튼 -->
+      <div class="photo-detail-actions">
+        <button onclick="closePhotoDetail()" class="detail-action-btn back-btn" style="background-color: rgba(255,255,255,0.2); border: 2px solid rgba(255,255,255,0.6);">
           <i class="fas fa-arrow-left mr-2"></i>
-          Go Back
+          Back
         </button>
-        <button onclick="deletePhoto('${photoId}', ${position})" class="btn btn-danger">
-          <i class="fas fa-trash mr-2"></i>
+        
+        <button onclick="deletePhoto('${photoId}', ${position})" class="detail-action-btn delete-btn" style="background-color: rgba(255,255,255,0.2); border: 2px solid rgba(255,255,255,0.6);">
           Delete
         </button>
       </div>
     </div>
-  `);
+  `;
+}
+
+// 사진 상세보기 닫기
+function closePhotoDetail() {
+  showCollageScreen();
 }
 
 // 카메라 열기
@@ -690,37 +707,7 @@ function showCompletionMessage() {
   }, 500);
 }
 
-// 미리보기 표시
-function showPreview() {
-  const slots = [];
-  for (let i = 1; i <= 9; i++) {
-    const slot = document.getElementById(`slot-${i}`);
-    const img = slot.querySelector('img');
-    slots.push(img ? img.src : null);
-  }
-  
-  let previewHTML = '<div class="color-grid mx-auto mb-4">';
-  for (let i = 0; i < 9; i++) {
-    const src = slots[i];
-    previewHTML += `
-      <div class="photo-slot ${src ? 'filled' : ''}">
-        ${src ? `<img src="${src}" alt="Photo ${i+1}">` : '<i class="fas fa-camera camera-icon"></i>'}
-      </div>
-    `;
-  }
-  previewHTML += '</div>';
-  
-  showModal(`
-    <div class="text-center">
-      <h3 class="text-lg font-bold mb-4">콜라주 미리보기</h3>
-      ${previewHTML}
-      <p class="text-gray-600 mb-4">${photoCount}/9 완료</p>
-      <button onclick="closeModal()" class="btn btn-primary">
-        OK
-      </button>
-    </div>
-  `);
-}
+// 미리보기 기능 제거됨 (디자인 간소화)
 
 // 현재 채워진 사진 개수 정확히 계산
 function recalculatePhotoCount() {
