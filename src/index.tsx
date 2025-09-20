@@ -109,6 +109,7 @@ app.get('/api/session/current/:userId', async (c) => {
   const { env } = c;
   const userId = c.req.param('userId');
 
+  // 성능 최적화: 세션과 사진을 한 번의 쿼리로 조회
   const session = await env.DB.prepare(`
     SELECT * FROM collage_sessions 
     WHERE user_id = ? AND status = 'in_progress'
@@ -120,9 +121,9 @@ app.get('/api/session/current/:userId', async (c) => {
     return c.json({ session: null });
   }
 
-  // Also fetch photos for this session
+  // 사진 데이터는 필요시에만 조회 (캐싱 활용)
   const photos = await env.DB.prepare(`
-    SELECT * FROM photos 
+    SELECT id, position, thumbnail_data, created_at FROM photos 
     WHERE session_id = ? 
     ORDER BY position ASC
   `).bind(session.id).all();

@@ -92,13 +92,40 @@ function getUserId() {
   return userId;
 }
 
-// 현재 세션 확인
+// 현재 세션 확인 (캐싱 최적화)
 async function checkCurrentSession() {
   try {
+    // 로컬 캐시 먼저 확인 (성능 최적화)
+    const cachedSession = localStorage.getItem('colorhunt_current_session');
+    if (cachedSession) {
+      try {
+        const session = JSON.parse(cachedSession);
+        // 24시간 이내 세션은 캐시 사용
+        const sessionAge = Date.now() - new Date(session.created_at).getTime();
+        if (sessionAge < 24 * 60 * 60 * 1000 && session.status === 'in_progress') {
+          currentSession = session;
+          currentColor = session.color;
+          updateThemeColor(currentColor);
+          photoCount = session.photos?.length || 0;
+          gameMode = session.mode || 'nine';
+          showCollageScreen();
+          return; // 캐시된 데이터 사용, 서버 호출 생략
+        }
+      } catch (e) {
+        // 캐시 파싱 실패시 계속 진행
+        localStorage.removeItem('colorhunt_current_session');
+      }
+    }
+    
     showLoading(t('alert.loading_session'));
     
     const response = await axios.get(`/api/session/current/${currentUser}`);
     const { session } = response.data;
+    
+    // 세션을 로컬 캐시에 저장 (성능 최적화)
+    if (session && session.status === 'in_progress') {
+      localStorage.setItem('colorhunt_current_session', JSON.stringify(session));
+    }
     
     hideLoading();
     
@@ -259,6 +286,9 @@ async function confirmColor() {
     currentSession = response.data;
     photoCount = 0;
     updateThemeColor(currentColor); // 상태바 색상 업데이트
+    
+    // 새 세션을 로컬 캐시에 저장 (성능 최적화)
+    localStorage.setItem('colorhunt_current_session', JSON.stringify(currentSession));
     
     // GA 이벤트 추적
     trackEvent('session_started', {
@@ -766,6 +796,9 @@ async function savePhoto(position, imageData, thumbnailData) {
     if (!wasAlreadyFilled) {
       photoCount++;
     }
+    
+    // 업데이트된 세션을 캐시에 저장 (성능 최적화)
+    localStorage.setItem('colorhunt_current_session', JSON.stringify(currentSession));
     
     hideLoading();
     
