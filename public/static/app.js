@@ -8,27 +8,46 @@ let photoCount = 0;
 let mediaStream = null;
 let gameMode = 'nine'; // 'nine' 또는 'unlimited'
 
-// 상태바 색상 업데이트 함수
+// 상태바 색상 업데이트 함수 (강화된 버전)
 function updateThemeColor(colorKey) {
-  if (!colorKey || !COLORS[colorKey]) return;
-  
-  const colorHex = COLORS[colorKey].hex;
-  
-  // 기존 theme-color 메타 태그 찾기
-  let themeColorMeta = document.querySelector('meta[name="theme-color"]');
-  
-  if (themeColorMeta) {
-    // 기존 메타 태그 업데이트
-    themeColorMeta.setAttribute('content', colorHex);
-  } else {
-    // 새로운 메타 태그 생성
-    themeColorMeta = document.createElement('meta');
-    themeColorMeta.setAttribute('name', 'theme-color');
-    themeColorMeta.setAttribute('content', colorHex);
-    document.head.appendChild(themeColorMeta);
+  if (!colorKey || !COLORS[colorKey]) {
+    console.log(`❌ 잘못된 색상 키: ${colorKey}`);
+    return;
   }
   
-  console.log(`🎨 상태바 색상 업데이트: ${colorKey} → ${colorHex}`);
+  const colorHex = COLORS[colorKey].hex;
+  console.log(`🎨 상태바 색상 업데이트 시도: ${colorKey} → ${colorHex}`);
+  
+  // 1. 기존 theme-color 메타 태그들을 모두 제거
+  const existingMetas = document.querySelectorAll('meta[name="theme-color"]');
+  existingMetas.forEach(meta => meta.remove());
+  
+  // 2. 새로운 theme-color 메타 태그 생성 및 추가
+  const themeColorMeta = document.createElement('meta');
+  themeColorMeta.setAttribute('name', 'theme-color');
+  themeColorMeta.setAttribute('content', colorHex);
+  document.head.appendChild(themeColorMeta);
+  
+  // 3. iOS Safari용 추가 메타 태그들
+  const appleStatusBarMeta = document.createElement('meta');
+  appleStatusBarMeta.setAttribute('name', 'apple-mobile-web-app-status-bar-style');
+  appleStatusBarMeta.setAttribute('content', 'default');
+  document.head.appendChild(appleStatusBarMeta);
+  
+  // 4. 브라우저 강제 새로고침을 위한 DOM 조작
+  setTimeout(() => {
+    const newMeta = document.createElement('meta');
+    newMeta.setAttribute('name', 'theme-color');
+    newMeta.setAttribute('content', colorHex);
+    document.head.appendChild(newMeta);
+    
+    // 기존 메타 태그 제거
+    const oldMetas = document.querySelectorAll('meta[name="theme-color"]:not(:last-child)');
+    oldMetas.forEach(meta => meta.remove());
+  }, 100);
+  
+  console.log(`✅ 상태바 색상 업데이트 완료: ${colorKey} → ${colorHex}`);
+  console.log(`📱 현재 메타 태그:`, document.querySelector('meta[name="theme-color"]'));
 }
 
 // 다국어 시스템
@@ -214,6 +233,9 @@ function showColorConfirmationScreen(color, date) {
   const colorInfo = COLORS[color.name];
   const isLightColor = ['yellow'].includes(color.name);
   
+  // 상태바 색상 즉시 업데이트 (배경색 변경과 함께)
+  updateThemeColor(color.name);
+  
   // 전체 배경색 변경
   document.body.style.backgroundColor = colorInfo.hex;
   document.body.style.transition = 'background-color 0.5s ease';
@@ -308,6 +330,11 @@ async function confirmColor() {
 
 // 콜라주 촬영 화면
 function showCollageScreen() {
+  // 콜라주 화면 진입 시 상태바 색상 확실히 업데이트
+  if (currentColor) {
+    updateThemeColor(currentColor);
+  }
+  
   if (gameMode === 'unlimited') {
     showUnlimitedCollageScreen();
   } else {
@@ -392,6 +419,9 @@ function showNineCollageScreen() {
 // 무제한 모드 콜라주 화면 (15개 슬롯, 3x5 그리드)
 function showUnlimitedCollageScreen() {
   const colorInfo = COLORS[currentColor];
+  
+  // 상태바 색상 업데이트 (무제한 모드 진입 시)
+  updateThemeColor(currentColor);
   
   // 배경색 유지
   if (document.body.style.backgroundColor !== colorInfo.hex) {
