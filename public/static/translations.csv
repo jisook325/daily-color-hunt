@@ -23,10 +23,10 @@ camera.complete_collage,"Complete",완성
 camera.camera_permission,"Camera permission is required",카메라 권한이 필요합니다
 camera.camera_access_error,"Unable to access camera",카메라에 접근할 수 없습니다
 collage.collage_completed,"Completed!",완성!
-collage.share_collage,"Share ",공유
+collage.share_collage,"Share Color",공유
 collage.save_collage,"Save to Gallery",갤러리에 저장
-collage.create_new_collage,"Create New",시작
-collage.complete_collage,"Complete",완성
+collage.create_new_collage,"Create New Color",시작
+collage.complete_collage,"Complete Color",완성
 alert.loading,"Loading...",로딩 중...
 alert.loading_session,"Loading session...",세션 로딩 중...
 alert.loading_color,"Loading color...",색깔 로딩 중...
@@ -39,8 +39,8 @@ alert.complete_error,"Failed to complete",완성에 실패했습니다
 management.no_completed_collages,"Hunt your first color !",Hunt your first color !
 management.reset,"Reset ",초기화
 management.history,"History",히스토리
-management.my_collage_history,"My History",히스토리
-management.create_first_collage,"Create your first !",첫 번째 만들어보세요!
+management.my_collage_history,"My Color History",히스토리
+management.create_first_collage,"Create your first color !",첫 번째 만들어보세요!
 picture.back,"Back",뒤로가기
 picture.delete,"Delete",삭제
 picture.take_photo,"Take Photo","사진 촬영"

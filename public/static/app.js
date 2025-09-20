@@ -185,14 +185,6 @@ function showColorSelectionScreen() {
       <button onclick="getNewColor()" class="btn btn-primary mb-4 w-full py-4 text-lg">
         ${t('main.start')}
       </button>
-      
-      <!-- 언어 토글 버튼 -->
-      <div class="mt-6">
-        <button onclick="toggleLanguage()" class="text-action-btn">
-          <i class="fas fa-globe mr-1"></i>
-          ${currentLanguage === 'en' ? '한국어' : 'English'}
-        </button>
-      </div>
     </div>
   `;
 }
@@ -402,9 +394,7 @@ function showNineCollageScreen() {
           <button onclick="showHistoryScreen()" class="text-action-btn">
             ${t('management.history')}
           </button>
-          <button onclick="toggleLanguage()" class="text-action-btn">
-            ${currentLanguage === 'en' ? '한국어' : 'English'}
-          </button>
+
         </div>
       </div>
     </div>
@@ -474,9 +464,7 @@ function showUnlimitedCollageScreen() {
           <button onclick="showHistoryScreen()" class="text-action-btn">
             ${t('management.history')}
           </button>
-          <button onclick="toggleLanguage()" class="text-action-btn">
-            ${currentLanguage === 'en' ? '한국어' : 'English'}
-          </button>
+
         </div>
       </div>
     </div>
@@ -1073,13 +1061,17 @@ async function generateCollageImage() {
     
     // 3x5 레이아웃: 900x1500 (각 셀 300x300)
     const cellSize = 300;
-    const gap = 8; // 슬롯 간격
+    const gap = 12; // 슬롯 간격 (8 → 12로 1.5배 증가)
     const radius = 8; // border-radius
+    const margin = gap; // 상하좌우 여백 (간격과 동일)
     
-    canvas.width = 3 * cellSize + 2 * gap;  // 924px
-    canvas.height = 5 * cellSize + 4 * gap; // 1532px
+    // 여백 포함 캔버스 크기 계산
+    canvas.width = 3 * cellSize + 2 * gap + 2 * margin;  // 948px
+    canvas.height = 5 * cellSize + 4 * gap + 2 * margin; // 1548px
     
-    ctx.fillStyle = '#ffffff';
+    // 배경색을 선택된 컬러로 설정
+    const colorInfo = COLORS[currentColor];
+    ctx.fillStyle = colorInfo.hex;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     
     let loadedImages = 0;
@@ -1093,8 +1085,8 @@ async function generateCollageImage() {
         newImg.onload = () => {
           const row = Math.floor((i-1) / 3);
           const col = (i-1) % 3;
-          const x = col * (cellSize + gap);
-          const y = row * (cellSize + gap);
+          const x = margin + col * (cellSize + gap); // 여백 추가
+          const y = margin + row * (cellSize + gap); // 여백 추가
           
           // 둥근 모서리로 이미지 그리기
           ctx.save();
@@ -1125,26 +1117,26 @@ function showCompletedScreen(collageData) {
   const app = document.getElementById('app');
   app.innerHTML = `
     <div class="text-center animate-fade-in p-4" style="color: ${textColor}">
-      <h2 class="text-2xl font-bold mb-6">🎉 Collage Complete!</h2>
+      <h2 class="text-2xl font-bold mb-6">🎉 Color Complete!</h2>
       
       <div class="mb-6">
-        <img src="${collageData}" alt="Completed collage" class="w-full max-w-md mx-auto rounded-lg shadow-lg">
+        <img src="${collageData}" alt="Completed color" class="w-full max-w-md mx-auto rounded-lg shadow-lg">
       </div>
       
       <div class="space-y-4">
         <button onclick="downloadCollage('${collageData}')" class="btn btn-${buttonStyle} w-full">
           <i class="fas fa-download mr-2"></i>
-          Save Collage
+          Save Color
         </button>
         
         <button onclick="showHistoryScreen()" class="btn btn-outline-${buttonStyle} w-full">
           <i class="fas fa-history mr-2"></i>
-          My Collages
+          My Colors
         </button>
         
         <button onclick="startNewCollage()" class="btn btn-outline-${buttonStyle} w-full">
           <i class="fas fa-plus mr-2"></i>
-          Create New Collage
+          Create New Color
         </button>
       </div>
     </div>
