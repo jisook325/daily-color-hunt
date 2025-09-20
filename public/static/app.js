@@ -1250,32 +1250,9 @@ async function showHistoryScreen() {
 }
 
 // 바로 컬러 헌트 시작 (히스토리에서 호출)
-async function startColorHuntDirectly() {
-  try {
-    showLoading(t('alert.loading_color'));
-    
-    // 랜덤 컬러 선택
-    const response = await axios.post('/api/color/random', {
-      user_id: currentUser
-    });
-    
-    const { color } = response.data;
-    currentColor = color;
-    
-    hideLoading();
-    
-    // 오늘 날짜 생성
-    const today = new Date().toISOString().split('T')[0];
-    
-    // 컬러 확인 화면으로 바로 이동 (confirm 버튼만 누르면 시작)
-    // color 응답이 이미 { name, hex, english, korean } 형태라고 가정
-    showColorConfirmationScreen(color, today);
-    
-  } catch (error) {
-    console.error('컬러 선택 오류:', error);
-    hideLoading();
-    showError(t('alert.failed_fetch_color'));
-  }
+function startColorHuntDirectly() {
+  // 컬러 선택 화면으로 이동
+  showColorSelectionScreen();
 }
 
 // 다국어 시스템 함수들
