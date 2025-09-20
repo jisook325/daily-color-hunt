@@ -1,0 +1,48 @@
+main.whats_today_color,"Let's Color Hunt together!",함께 컬러헌트해요!
+main.discover_color,"1. Check your color of today\n2. Hunt your color during day\n3. Share it","1. 오늘의 색깔을 확인하세요\n2. 하루 종일 색깔을 찾아보세요\n3. 공유해보세요"
+main.start,"Hunt",시작하기
+main.choose_mode,"Choose Your Mode",모드를 선택하세요
+main.nine_mode,"Sqaure Mode",정방형 모드
+main.unlimited_mode,"Unlimited Mode (15 photos)",무제한 모드 (15장)
+color.today_color_is,"Today's color is",오늘의 색깔은
+color.red,"Red",빨강
+color.orange,"Orange",주황
+color.yellow,"Yellow",노랑
+color.green,"Green",초록
+color.blue,"Blue",파랑
+color.indigo,"Purple",보라
+color.purple,"Violet",자주
+
+color.black,"Black",검정
+color.what_is_your_color,"What is your {{color}}?",당신의 {{color}}은 무엇인가요?
+color.get_another_color,"Get Another Color",다른 색깔 받기
+camera.capture_photo,"Capture Photo",사진 촬영
+camera.retake_photo,"Retake",다시 촬영
+camera.next_photo,"Next Photo",다음 사진
+camera.complete_collage,"Complete",완성
+camera.camera_permission,"Camera permission is required",카메라 권한이 필요합니다
+camera.camera_access_error,"Unable to access camera",카메라에 접근할 수 없습니다
+collage.collage_completed,"Completed!",완성!
+collage.share_collage,"Share ",공유
+collage.save_collage,"Save to Gallery",갤러리에 저장
+collage.create_new_collage,"Create New",시작
+collage.complete_collage,"Complete",완성
+alert.loading,"Loading...",로딩 중...
+alert.loading_session,"Loading session...",세션 로딩 중...
+alert.loading_color,"Loading color...",색깔 로딩 중...
+alert.loading_history,"Loading history...",히스토리 로딩 중...
+alert.failed_start_session,"Failed to start session",세션 시작에 실패했습니다
+alert.failed_fetch_color,"Failed to fetch color",색깔 가져오기에 실패했습니다
+alert.failed_load_history,"Failed to load history",히스토리 로드에 실패했습니다
+alert.upload_error,"Failed to upload photo",사진 업로드에 실패했습니다
+alert.complete_error,"Failed to complete",완성에 실패했습니다
+management.no_completed_collages,"Hunt your first color !",Hunt your first color !
+management.reset,"Reset ",초기화
+management.history,"History",히스토리
+management.my_collage_history,"My History",히스토리
+management.create_first_collage,"Create your first !",첫 번째 만들어보세요!
+picture.back,"Back",뒤로가기
+picture.delete,"Delete",삭제
+picture.take_photo,"Take Photo","사진 촬영"
+picture.take_picture,"Take Picture {{number}}","{{number}}번째 사진 촬영"
+alert.take_all_photos,"Take at least 9 photos to complete ({{count}}/9)","완성하려면 최소 9장 필요 ({{count}}/9)"

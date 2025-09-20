@@ -6,26 +6,60 @@ let currentSession = null;
 let currentColor = null;
 let photoCount = 0;
 let mediaStream = null;
+let gameMode = 'nine'; // 'nine' 또는 'unlimited'
+
+// 상태바 색상 업데이트 함수
+function updateThemeColor(colorKey) {
+  if (!colorKey || !COLORS[colorKey]) return;
+  
+  const colorHex = COLORS[colorKey].hex;
+  
+  // 기존 theme-color 메타 태그 찾기
+  let themeColorMeta = document.querySelector('meta[name="theme-color"]');
+  
+  if (themeColorMeta) {
+    // 기존 메타 태그 업데이트
+    themeColorMeta.setAttribute('content', colorHex);
+  } else {
+    // 새로운 메타 태그 생성
+    themeColorMeta = document.createElement('meta');
+    themeColorMeta.setAttribute('name', 'theme-color');
+    themeColorMeta.setAttribute('content', colorHex);
+    document.head.appendChild(themeColorMeta);
+  }
+  
+  console.log(`🎨 상태바 색상 업데이트: ${colorKey} → ${colorHex}`);
+}
+
+// 다국어 시스템
+let currentLanguage = 'en'; // 기본 언어
+let i18nData = {}; // 다국어 데이터 저장소
+let isI18nLoaded = false; // 로딩 상태
 
 // 컬러 정보
 const COLORS = {
-  red: { hex: '#FFB3B3', english: 'Soft Coral', korean: '빨강' },
+  red: { hex: '#FF3333', english: 'Red', korean: '빨강' },
   orange: { hex: '#FFCC99', english: 'Warm Peach', korean: '주황' },
   yellow: { hex: '#FFF2CC', english: 'Cream Yellow', korean: '노랑' },
   green: { hex: '#C6E2C7', english: 'Sage Green', korean: '초록' },
   blue: { hex: '#B3D3FF', english: 'Sky Blue', korean: '파랑' },
-  indigo: { hex: '#C7B3EB', english: 'Lavender', korean: '남색' },
-  purple: { hex: '#E0B3FF', english: 'Soft Violet', korean: '보라' },
-  white: { hex: '#FEFEFE', english: 'Off White', korean: '흰색' },
+  indigo: { hex: '#C7B3EB', english: 'Purple', korean: '보라' },
+  purple: { hex: '#E0B3FF', english: 'Violet', korean: '자주' },
   black: { hex: '#2D2D2D', english: 'Charcoal', korean: '검정' }
 };
 
 // 앱 초기화
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
   console.log('🎨 Color Hunt 앱 시작!');
   
   // 사용자 ID 생성 또는 로드
   currentUser = getUserId();
+  
+  // 저장된 언어 설정 로드
+  const savedLanguage = localStorage.getItem('colorhunt_language');
+  if (savedLanguage && ['en', 'ko'].includes(savedLanguage)) {
+    currentLanguage = savedLanguage;
+  }
   
   // 메인 컨테이너 설정
   const app = document.getElementById('app');
@@ -33,13 +67,16 @@ document.addEventListener('DOMContentLoaded', function() {
     document.body.innerHTML = `
       <div class="min-h-screen flex items-center justify-center">
         <div class="text-center p-8">
-          <h1 class="text-4xl font-bold mb-6">🎨 Color Hunt</h1>
-          <p class="text-gray-600 mb-8">오늘의 컬러를 찾아 9장의 사진으로 콜라주를 만들어보세요!</p>
           <div id="app"></div>
         </div>
       </div>
     `;
   }
+  
+  // 다국어 데이터 로드
+  showLoading('Loading...');
+  await loadI18nData();
+  hideLoading();
   
   // 현재 세션 확인 후 적절한 화면 표시
   checkCurrentSession();
@@ -58,7 +95,7 @@ function getUserId() {
 // 현재 세션 확인
 async function checkCurrentSession() {
   try {
-    showLoading('세션 확인 중...');
+    showLoading(t('alert.loading_session'));
     
     const response = await axios.get(`/api/session/current/${currentUser}`);
     const { session } = response.data;
@@ -69,7 +106,9 @@ async function checkCurrentSession() {
       // 진행 중인 세션이 있으면 콜라주 화면으로
       currentSession = session;
       currentColor = session.color;
+      updateThemeColor(currentColor); // 상태바 색상 업데이트
       photoCount = session.photos?.length || 0;
+      gameMode = session.mode || 'nine'; // 모드 정보 복원
       showCollageScreen();
     } else {
       // 새로운 컬러 선택 화면으로
@@ -91,18 +130,21 @@ function showColorSelectionScreen() {
   const app = document.getElementById('app');
   app.innerHTML = `
     <div class="text-center animate-fade-in p-4">
-      <h2 class="text-2xl font-bold mb-6">What's Today's Color?</h2>
-      <p class="text-gray-600 mb-8">Discover a new color and start taking photos!</p>
+      <h1 class="text-3xl font-bold mb-8 text-gray-800">${t('main.whats_today_color')}</h1>
       
-      <button onclick="getNewColor()" class="btn btn-primary mb-4">
-        <i class="fas fa-palette mr-2"></i>
-        Get New Color
+      <div class="text-gray-600 leading-relaxed whitespace-pre-line mb-8">
+        ${t('main.discover_color')}
+      </div>
+      
+      <button onclick="getNewColor()" class="btn btn-primary mb-4 w-full py-4 text-lg">
+        ${t('main.start')}
       </button>
       
-      <div class="mt-8">
-        <button onclick="showHistoryScreen()" class="btn btn-secondary">
-          <i class="fas fa-history mr-2"></i>
-          My Collages
+      <!-- 언어 토글 버튼 -->
+      <div class="mt-6">
+        <button onclick="toggleLanguage()" class="text-action-btn">
+          <i class="fas fa-globe mr-1"></i>
+          ${currentLanguage === 'en' ? '한국어' : 'English'}
         </button>
       </div>
     </div>
@@ -121,6 +163,7 @@ async function getNewColor(excludeColor = null) {
     
     const { color, date } = response.data;
     currentColor = color.name;
+    updateThemeColor(currentColor); // 상태바 색상 업데이트
     
     // GA 이벤트 추적
     trackEvent('color_selected', {
@@ -139,16 +182,16 @@ async function getNewColor(excludeColor = null) {
   }
 }
 
-// 컬러 확인 화면
+// 컬러 확인 화면 (바로 15장 모드로 진입)
 function showColorConfirmationScreen(color, date) {
   const colorInfo = COLORS[color.name];
-  const isLightColor = ['yellow', 'white'].includes(color.name);
+  const isLightColor = ['yellow'].includes(color.name);
   
   // 전체 배경색 변경
   document.body.style.backgroundColor = colorInfo.hex;
   document.body.style.transition = 'background-color 0.5s ease';
   
-  // 텍스트 색상 결정 (밝은 배경이면 어두운 텍스트, 어두운 배경이면 밝은 텍스트)
+  // 텍스트 색상 결정
   const textColor = isLightColor ? '#2D2D2D' : '#FFFFFF';
   const buttonStyle = isLightColor ? 'dark' : 'light';
   
@@ -156,39 +199,66 @@ function showColorConfirmationScreen(color, date) {
   app.innerHTML = `
     <div class="text-center animate-fade-in p-4" style="color: ${textColor}">
       <p class="text-sm mb-4 opacity-70">${date}</p>
-      <p class="text-lg mb-4">Today's color is</p>
+      <p class="text-lg mb-4">${t('color.today_color_is')}</p>
       
       <div class="mb-8">
-        <h2 class="text-4xl font-bold mb-2">${colorInfo.english}</h2>
+        <h2 class="text-4xl font-bold mb-2">${t('color.' + color.name)}</h2>
         <p class="text-lg opacity-80">${color.name.toUpperCase()}</p>
       </div>
       
       <div class="mt-8 space-y-4">
-        <button onclick="confirmColor()" class="btn btn-${buttonStyle} w-full">
-          <i class="fas fa-check mr-2"></i>
-          Confirm
+        <button onclick="startNineMode()" class="btn btn-${buttonStyle} w-full py-4 text-lg">
+          <i class="fas fa-camera mr-2"></i>
+          ${t('main.nine_mode')}
         </button>
-        <button onclick="getNewColor('${color.name}')" class="btn btn-outline-${buttonStyle} w-full">
+        
+        <button onclick="getNewColor('${color.name}')" class="btn btn-outline-${buttonStyle} w-full mt-6">
           <i class="fas fa-refresh mr-2"></i>
-          Get Another Color
+          ${t('color.get_another_color')}
         </button>
       </div>
     </div>
   `;
 }
 
+// 9개 모드 시작
+async function startNineMode() {
+  gameMode = 'nine';
+  await confirmColor();
+}
+
+// 무제한 모드 시작  
+async function startUnlimitedMode() {
+  gameMode = 'unlimited';
+  await confirmColor();
+}
+
+// 9개 모드 시작
+async function startNineMode() {
+  gameMode = 'nine';
+  await confirmColor();
+}
+
+// 무제한 모드 시작  
+async function startUnlimitedMode() {
+  gameMode = 'unlimited';
+  await confirmColor();
+}
+
 // 컬러 확인 후 세션 시작
 async function confirmColor() {
   try {
-    showLoading('Starting session...');
+    showLoading(t('alert.loading_session'));
     
     const response = await axios.post('/api/session/start', {
       userId: currentUser,
-      color: currentColor
+      color: currentColor,
+      mode: gameMode
     });
     
     currentSession = response.data;
     photoCount = 0;
+    updateThemeColor(currentColor); // 상태바 색상 업데이트
     
     // GA 이벤트 추적
     trackEvent('session_started', {
@@ -202,14 +272,23 @@ async function confirmColor() {
   } catch (error) {
     console.error('Session start error:', error);
     hideLoading();
-    showError('Failed to start session.');
+    showError(t('alert.failed_start_session'));
   }
 }
 
 // 콜라주 촬영 화면
 function showCollageScreen() {
+  if (gameMode === 'unlimited') {
+    showUnlimitedCollageScreen();
+  } else {
+    showNineCollageScreen();
+  }
+}
+
+// 15개 모드 콜라주 화면 (3x5 레이아웃)
+function showNineCollageScreen() {
   const colorInfo = COLORS[currentColor];
-  const progress = Math.round((photoCount / 9) * 100);
+  const progress = Math.round((photoCount / 15) * 100);
   
   // 배경색 유지
   if (document.body.style.backgroundColor !== colorInfo.hex) {
@@ -218,9 +297,8 @@ function showCollageScreen() {
   }
   
   // 텍스트 색상 결정
-  const isLightColor = ['yellow', 'white'].includes(currentColor);
+  const isLightColor = ['yellow'].includes(currentColor);
   const textColor = isLightColor ? '#2D2D2D' : '#FFFFFF';
-  const buttonStyle = isLightColor ? 'dark' : 'light';
   
   const app = document.getElementById('app');
   
@@ -232,40 +310,43 @@ function showCollageScreen() {
       <!-- 상단 정보 -->
       <div class="collage-header">
         <div class="date-display">${currentDate}</div>
-        <h1 class="color-question">What is your ${colorInfo.english}?</h1>
+        <h1 class="color-question">${t('color.what_is_your_color', { color: t('color.' + currentColor) })}</h1>
         
         <!-- 프로그레스 바 -->
         <div class="progress-container">
           <div class="progress-track">
             <div class="progress-fill-modern" style="width: ${progress}%"></div>
           </div>
-          <div class="progress-text">${photoCount} / 9</div>
+          <div class="progress-text">${photoCount} / 15</div>
         </div>
       </div>
       
       <!-- 사진 그리드 -->
       <div class="photo-grid-modern" id="photoGrid">
-        ${generateSequentialPhotoGrid()}
+        ${generateNinePhotoGrid()}
       </div>
       
       <!-- 하단 액션 -->
       <div class="collage-actions">
-        ${photoCount === 9 ? `
+        ${photoCount === 15 ? `
           <button onclick="completeCollage()" class="main-action-btn complete-btn" style="background-color: rgba(255,255,255,0.2); border: 2px solid rgba(255,255,255,0.8);">
-            Complete Collage
+            ${t('collage.complete_collage')}
           </button>
         ` : `
           <button onclick="openCamera()" class="main-action-btn photo-btn" style="background-color: rgba(255,255,255,0.2); border: 2px solid rgba(255,255,255,0.8);">
-            Take a picture ${photoCount + 1}
+            ${t('picture.take_photo')}
           </button>
         `}
         
         <div class="secondary-actions">
           <button onclick="resetSession()" class="text-action-btn">
-            Reset
+            ${t('management.reset')}
           </button>
           <button onclick="showHistoryScreen()" class="text-action-btn">
-            History
+            ${t('management.history')}
+          </button>
+          <button onclick="toggleLanguage()" class="text-action-btn">
+            ${currentLanguage === 'en' ? '한국어' : 'English'}
           </button>
         </div>
       </div>
@@ -278,13 +359,82 @@ function showCollageScreen() {
   }
 }
 
-// 순차적 사진 그리드 생성 (카메라 아이콘은 다음 빈 슬롯에만)
-function generateSequentialPhotoGrid() {
-  let gridHTML = '';
-  let nextEmptySlot = photoCount + 1; // 다음 촬영할 슬롯 번호
+// 무제한 모드 콜라주 화면 (15개 슬롯, 3x5 그리드)
+function showUnlimitedCollageScreen() {
+  const colorInfo = COLORS[currentColor];
   
-  for (let i = 1; i <= 9; i++) {
-    const showCamera = (i === nextEmptySlot && i <= 9);
+  // 배경색 유지
+  if (document.body.style.backgroundColor !== colorInfo.hex) {
+    document.body.style.backgroundColor = colorInfo.hex;
+    document.body.style.transition = 'background-color 0.5s ease';
+  }
+  
+  // 텍스트 색상 결정
+  const isLightColor = ['yellow'].includes(currentColor);
+  const textColor = isLightColor ? '#2D2D2D' : '#FFFFFF';
+  
+  const app = document.getElementById('app');
+  
+  // 현재 날짜 생성
+  const currentDate = new Date().toISOString().split('T')[0];
+  
+  app.innerHTML = `
+    <div class="unlimited-collage-screen animate-fade-in" style="color: ${textColor}">
+      <!-- 상단: 날짜, 질문, 촬영 버튼 -->
+      <div class="unlimited-header">
+        <div class="date-display">${currentDate}</div>
+        <h1 class="color-question">${t('color.what_is_your_color', { color: t('color.' + currentColor) })}</h1>
+        
+        <button onclick="openCamera()" class="main-action-btn photo-btn" style="background-color: rgba(255,255,255,0.2); border: 2px solid rgba(255,255,255,0.8); margin: 16px 0;">
+          ${t('picture.take_photo', { number: '' })} (${photoCount}/15)
+        </button>
+      </div>
+      
+      <!-- 15개 사진 그리드 (3x5) -->
+      <div class="unlimited-photo-grid" id="photoGrid">
+        ${generateUnlimitedPhotoGrid()}
+      </div>
+      
+      <!-- 하단 액션 -->
+      <div class="unlimited-actions">
+        ${photoCount >= 9 ? `
+          <button onclick="completeCollage()" class="complete-action-btn" style="background-color: rgba(255,255,255,0.2); border: 2px solid rgba(255,255,255,0.8);">
+            ${t('collage.complete_collage')}
+          </button>
+        ` : `
+          <div class="complete-requirement" style="opacity: 0.7; font-size: 14px;">
+            ${t('alert.take_all_photos', { count: photoCount })}
+          </div>
+        `}
+        
+        <div class="secondary-actions">
+          <button onclick="resetSession()" class="text-action-btn">
+            ${t('management.reset')}
+          </button>
+          <button onclick="showHistoryScreen()" class="text-action-btn">
+            ${t('management.history')}
+          </button>
+          <button onclick="toggleLanguage()" class="text-action-btn">
+            ${currentLanguage === 'en' ? '한국어' : 'English'}
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  // 기존 사진 데이터 로드
+  if (currentSession && currentSession.photos) {
+    loadExistingPhotos();
+  }
+}
+
+// 15개 모드 그리드 생성 (3x5 레이아웃)
+function generateNinePhotoGrid() {
+  let gridHTML = '';
+  let nextEmptySlot = photoCount + 1;
+  
+  for (let i = 1; i <= 15; i++) {
+    const showCamera = (i === nextEmptySlot && i <= 15);
     gridHTML += `
       <div class="photo-slot" id="slot-${i}" onclick="handleSlotClick(${i})">
         ${showCamera ? '<i class="fas fa-camera camera-icon"></i>' : ''}
@@ -294,9 +444,27 @@ function generateSequentialPhotoGrid() {
   return gridHTML;
 }
 
-// 기존 함수 유지 (호환성을 위해)
+// 무제한 모드 그리드 생성 (15개, 3x5)
+function generateUnlimitedPhotoGrid() {
+  let gridHTML = '';
+  
+  for (let i = 1; i <= 15; i++) {
+    gridHTML += `
+      <div class="unlimited-photo-slot" id="slot-${i}" onclick="handleUnlimitedSlotClick(${i})">
+        <!-- 빈 슬롯 -->
+      </div>
+    `;
+  }
+  return gridHTML;
+}
+
+// 기존 함수들 (호환성)
+function generateSequentialPhotoGrid() {
+  return generateNinePhotoGrid();
+}
+
 function generatePhotoGrid() {
-  return generateSequentialPhotoGrid();
+  return generateNinePhotoGrid();
 }
 
 // 기존 사진 로드
@@ -317,7 +485,7 @@ function loadExistingPhotos() {
   updateProgress();
 }
 
-// 슬롯 클릭 처리 (순차적 촬영)
+// 15개 모드 슬롯 클릭 처리
 function handleSlotClick(position) {
   const slot = document.getElementById(`slot-${position}`);
   
@@ -325,12 +493,25 @@ function handleSlotClick(position) {
     // 이미 있는 사진 - 크게 보기
     showPhotoDetail(position);
   } else {
-    // 빈 슬롯 - 순차적 촬영만 허용
+    // 빈 슬롯 - 항상 다음 빈 슬롯에 촬영 (어떤 슬롯을 눌러도)
     const nextSlot = photoCount + 1;
-    if (position === nextSlot) {
+    if (nextSlot <= 9) {
+      openCameraForPosition(nextSlot);
+    }
+  }
+}
+
+// 무제한 모드 슬롯 클릭 처리
+function handleUnlimitedSlotClick(position) {
+  const slot = document.getElementById(`slot-${position}`);
+  
+  if (slot.classList.contains('filled')) {
+    // 이미 있는 사진 - 크게 보기
+    showPhotoDetail(position);
+  } else {
+    // 빈 슬롯 - 해당 위치에 바로 촬영
+    if (photoCount < 15) {
       openCameraForPosition(position);
-    } else {
-      showToast(`Please take photos in order. Take photo ${nextSlot} first.`, 'info');
     }
   }
 }
@@ -345,7 +526,7 @@ function showPhotoDetail(position) {
   
   // 현재 배경색 유지
   const colorInfo = COLORS[currentColor];
-  const isLightColor = ['yellow', 'white'].includes(currentColor);
+  const isLightColor = ['yellow'].includes(currentColor);
   const textColor = isLightColor ? '#2D2D2D' : '#FFFFFF';
   
   const app = document.getElementById('app');
@@ -353,7 +534,7 @@ function showPhotoDetail(position) {
     <div class="photo-detail-screen animate-fade-in" style="background: ${colorInfo.hex}; color: ${textColor};">
       <!-- 상단 제목 -->
       <div class="photo-detail-header">
-        <h2 class="photo-title">Picture ${position}</h2>
+        <h2 class="photo-title">Photo ${position}</h2>
       </div>
       
       <!-- 중앙 사진 -->
@@ -367,11 +548,11 @@ function showPhotoDetail(position) {
       <div class="photo-detail-actions">
         <button onclick="closePhotoDetail()" class="detail-action-btn back-btn" style="background-color: rgba(255,255,255,0.2); border: 2px solid rgba(255,255,255,0.6);">
           <i class="fas fa-arrow-left mr-2"></i>
-          Back
+          ${t('picture.back')}
         </button>
         
         <button onclick="deletePhoto('${photoId}', ${position})" class="detail-action-btn delete-btn" style="background-color: rgba(255,255,255,0.2); border: 2px solid rgba(255,255,255,0.6);">
-          Delete
+          ${t('picture.delete')}
         </button>
       </div>
     </div>
@@ -399,7 +580,7 @@ function openCamera() {
 function openCameraForPosition(position) {
   // 현재 배경색 유지
   const colorInfo = COLORS[currentColor];
-  const isLightColor = ['yellow', 'white'].includes(currentColor);
+  const isLightColor = ['yellow'].includes(currentColor);
   
   // 전체 화면 카메라 인터페이스로 변경
   const app = document.getElementById('app');
@@ -415,7 +596,7 @@ function openCameraForPosition(position) {
         </button>
         <div class="camera-info">
           <span class="photo-number">Photo ${position}</span>
-          <span class="color-name">Find ${colorInfo.english}</span>
+          <span class="color-name">Find ${t('color.' + currentColor)}</span>
         </div>
       </div>
       
@@ -466,11 +647,26 @@ async function startCamera() {
     video.srcObject = stream;
     mediaStream = stream;
     
+    // 터치 이벤트 기본 동작 방지 (페이지 확대/줌 방지)
+    video.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+    }, { passive: false });
+    
+    video.addEventListener('touchmove', (e) => {
+      e.preventDefault();
+    }, { passive: false });
+    
+    video.addEventListener('touchend', (e) => {
+      e.preventDefault();
+    }, { passive: false });
+    
   } catch (error) {
     console.error('카메라 접근 오류:', error);
     showError('카메라에 접근할 수 없습니다. 권한을 확인해주세요.');
   }
 }
+
+
 
 // 카메라 정지
 function stopCamera() {
@@ -549,6 +745,23 @@ async function savePhoto(position, imageData, thumbnailData) {
     slot.classList.add('filled');
     slot.setAttribute('data-photo-id', response.data.photoId);
     
+    // currentSession.photos에 새 사진 데이터 즉시 추가/업데이트
+    if (!currentSession.photos) {
+      currentSession.photos = [];
+    }
+    
+    // 기존 동일 포지션 사진 제거 (재촬영 케이스)
+    currentSession.photos = currentSession.photos.filter(p => p.position !== position);
+    
+    // 새 사진 데이터 추가
+    currentSession.photos.push({
+      id: response.data.photoId,
+      position: position,
+      thumbnail_data: thumbnailData,
+      image_data: imageData,
+      created_at: new Date().toISOString()
+    });
+    
     // 사진 개수 업데이트 (새로운 사진인 경우만)
     if (!wasAlreadyFilled) {
       photoCount++;
@@ -569,7 +782,7 @@ async function savePhoto(position, imageData, thumbnailData) {
     });
     
     // 완성 체크
-    if (photoCount === 9) {
+    if (photoCount === 15) {
       showCompletionMessage();
       trackEvent('collage_ready', {
         color_name: currentColor,
@@ -595,7 +808,7 @@ async function deletePhoto(photoId, position) {
     
     // 모든 사진 데이터를 배열로 수집
     const photos = [];
-    for (let i = 1; i <= 9; i++) {
+    for (let i = 1; i <= 15; i++) {
       const slot = document.getElementById(`slot-${i}`);
       if (slot && slot.classList.contains('filled') && i !== position) {
         const img = slot.querySelector('img');
@@ -611,7 +824,7 @@ async function deletePhoto(photoId, position) {
     }
     
     // 모든 슬롯 초기화
-    for (let i = 1; i <= 9; i++) {
+    for (let i = 1; i <= 15; i++) {
       const slot = document.getElementById(`slot-${i}`);
       if (slot) {
         slot.innerHTML = '';
@@ -633,17 +846,22 @@ async function deletePhoto(photoId, position) {
     
     photoCount = photos.length;
     
+    // 브라우저 캐시에서 삭제된 이미지 강제 제거
+    const deletedPhotoSlot = document.getElementById(`slot-${position}`);
+    if (deletedPhotoSlot) {
+      const img = deletedPhotoSlot.querySelector('img');
+      if (img && img.src) {
+        // 이미지 캐시 무효화
+        img.src = '';
+        img.removeAttribute('src');
+      }
+    }
+    
     closeModal();
     hideLoading();
-    updateProgress();
     
-    // 그리드 다시 그리기 (카메라 아이콘 위치 업데이트)
+    // 콜라주 화면을 완전히 새로고침하여 캐시 문제 해결
     showCollageScreen();
-    
-    // 기존 사진들을 다시 로드
-    if (currentSession && currentSession.photos) {
-      loadExistingPhotos();
-    }
     
   } catch (error) {
     console.error('Photo delete error:', error);
@@ -656,7 +874,7 @@ async function deletePhoto(photoId, position) {
 function updateProgress() {
   // 실제 사진 개수 재계산
   const actualCount = recalculatePhotoCount();
-  const progress = Math.round((actualCount / 9) * 100);
+  const progress = Math.round((actualCount / 15) * 100);
   
   const progressFill = document.querySelector('.progress-fill');
   if (progressFill) {
@@ -679,7 +897,7 @@ function updateCompleteButton(photoCount) {
   const completeButton = document.querySelector('button[onclick="completeCollage()"]');
   const cameraButton = document.querySelector('button[onclick="openCamera()"]');
   
-  if (photoCount === 9) {
+  if (photoCount === 15) {
     if (cameraButton && cameraButton.parentNode) {
       cameraButton.parentNode.innerHTML = `
         <button onclick="completeCollage()" class="btn btn-success w-full">
@@ -703,7 +921,7 @@ function updateCompleteButton(photoCount) {
 // 완성 메시지
 function showCompletionMessage() {
   setTimeout(() => {
-    showToast('🎉 9장 모두 완료! 콜라주를 완성해보세요!', 'success');
+    showToast('🎉 15장 모두 완료! 콜라주를 완성해보세요!', 'success');
   }, 500);
 }
 
@@ -728,7 +946,7 @@ async function completeCollage() {
   const actualPhotoCount = recalculatePhotoCount();
   
   if (actualPhotoCount < 9) {
-    showError(`9장의 사진을 모두 촬영해주세요. (현재 ${actualPhotoCount}/9)`);
+    showError(`15장의 사진을 모두 촬영해주세요. (현재 ${actualPhotoCount}/15)`);
     return;
   }
   
@@ -769,23 +987,41 @@ async function completeCollage() {
   }
 }
 
-// 콜라주 이미지 생성
+// 둥근 사각형 그리기 헬퍼 함수
+function drawRoundedRect(ctx, x, y, width, height, radius) {
+  ctx.beginPath();
+  ctx.moveTo(x + radius, y);
+  ctx.lineTo(x + width - radius, y);
+  ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+  ctx.lineTo(x + width, y + height - radius);
+  ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+  ctx.lineTo(x + radius, y + height);
+  ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+  ctx.lineTo(x, y + radius);
+  ctx.quadraticCurveTo(x, y, x + radius, y);
+  ctx.closePath();
+}
+
+// 콜라주 이미지 생성 (3x5 = 15장)
 async function generateCollageImage() {
   return new Promise((resolve) => {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
     
-    const size = 900; // 3x3 = 300px per cell
-    canvas.width = size;
-    canvas.height = size;
+    // 3x5 레이아웃: 900x1500 (각 셀 300x300)
+    const cellSize = 300;
+    const gap = 8; // 슬롯 간격
+    const radius = 8; // border-radius
+    
+    canvas.width = 3 * cellSize + 2 * gap;  // 924px
+    canvas.height = 5 * cellSize + 4 * gap; // 1532px
     
     ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, size, size);
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
     
-    const cellSize = size / 3;
     let loadedImages = 0;
     
-    for (let i = 1; i <= 9; i++) {
+    for (let i = 1; i <= 15; i++) {
       const slot = document.getElementById(`slot-${i}`);
       const img = slot.querySelector('img');
       
@@ -794,10 +1030,15 @@ async function generateCollageImage() {
         newImg.onload = () => {
           const row = Math.floor((i-1) / 3);
           const col = (i-1) % 3;
-          const x = col * cellSize;
-          const y = row * cellSize;
+          const x = col * (cellSize + gap);
+          const y = row * (cellSize + gap);
           
+          // 둥근 모서리로 이미지 그리기
+          ctx.save();
+          drawRoundedRect(ctx, x, y, cellSize, cellSize, radius);
+          ctx.clip();
           ctx.drawImage(newImg, x, y, cellSize, cellSize);
+          ctx.restore();
           
           loadedImages++;
           if (loadedImages === photoCount) {
@@ -814,7 +1055,7 @@ async function generateCollageImage() {
 function showCompletedScreen(collageData) {
   // 배경색 유지 (현재 색상)
   const colorInfo = COLORS[currentColor];
-  const isLightColor = ['yellow', 'white'].includes(currentColor);
+  const isLightColor = ['yellow'].includes(currentColor);
   const textColor = isLightColor ? '#2D2D2D' : '#FFFFFF';
   const buttonStyle = isLightColor ? 'dark' : 'light';
   
@@ -886,47 +1127,57 @@ async function resetSession() {
 // 이력 화면
 async function showHistoryScreen() {
   try {
-    showLoading('이력 불러오는 중...');
+    showLoading(t('alert.loading_history'));
     
     const response = await axios.get(`/api/history/${currentUser}?limit=20`);
     const { collages } = response.data;
     
     hideLoading();
     
+    // 현재 배경색 유지 (오늘의 색이 있으면 사용, 없으면 기본 회색)
+    const colorInfo = currentColor ? COLORS[currentColor] : null;
+    const backgroundColor = colorInfo ? colorInfo.hex : '#F9FAFB';
+    const isLightColor = currentColor ? ['yellow', 'white'].includes(currentColor) : true;
+    const textColor = isLightColor ? '#2D2D2D' : '#FFFFFF';
+    
+    // 배경색 적용
+    document.body.style.backgroundColor = backgroundColor;
+    document.body.style.color = textColor;
+    
     const app = document.getElementById('app');
     app.innerHTML = `
-      <div class="animate-fade-in">
-        <div class="flex items-center justify-between mb-6">
-          <h2 class="text-xl font-bold">내 콜라주 이력</h2>
-          <button onclick="checkCurrentSession()" class="btn btn-secondary">
-            <i class="fas fa-arrow-left mr-2"></i>
-            Go Back
+      <div class="clean-history-screen animate-fade-in" style="color: ${textColor};">
+        <!-- 상단 네비게이션 -->
+        <div class="history-header">
+          <button onclick="checkCurrentSession()" class="history-back-btn">
+            <i class="fas fa-arrow-left"></i>
           </button>
+          <h1 class="history-title">${t('management.my_collage_history')}</h1>
         </div>
         
         ${collages.length === 0 ? `
-          <div class="text-center py-12">
-            <i class="fas fa-images text-4xl text-gray-400 mb-4"></i>
-            <p class="text-gray-600 mb-4">아직 완성한 콜라주가 없습니다.</p>
-            <button onclick="showColorSelectionScreen()" class="btn btn-primary">
-              첫 번째 콜라주 만들기
+          <!-- 빈 상태 - 이미지와 동일한 디자인 -->
+          <div class="empty-history-content">
+            <div class="empty-message">
+              <h2 class="empty-title">${t('management.no_completed_collages')}</h2>
+            </div>
+            <button onclick="startColorHuntDirectly()" class="find-color-btn">
+              ${t('management.create_first_collage')}
             </button>
           </div>
         ` : `
-          <div class="history-grid">
+          <!-- 콜라주 목록 -->
+          <div class="history-collages">
             ${collages.map(collage => `
-              <div class="history-card">
-                <img src="${collage.collage_data}" alt="${collage.color} 콜라주">
-                <div class="history-card-content">
-                  <div class="flex items-center justify-between mb-2">
-                    <span class="font-semibold" style="color: ${COLORS[collage.color]?.hex || '#666'}">
-                      ${COLORS[collage.color]?.korean || collage.color}
-                    </span>
-                    <span class="text-sm text-gray-500">${collage.date}</span>
-                  </div>
-                  <button onclick="downloadCollage('${collage.collage_data}')" class="btn btn-secondary w-full text-sm">
-                    <i class="fas fa-download mr-1"></i>
-                    Download
+              <div class="history-collage-item" style="border-color: rgba(255,255,255,0.3);">
+                <div class="collage-preview">
+                  <img src="${collage.collage_data}" alt="${collage.color} collage">
+                </div>
+                <div class="collage-info">
+                  <div class="collage-color">${COLORS[collage.color]?.english || collage.color}</div>
+                  <div class="collage-date">${collage.date}</div>
+                  <button onclick="downloadCollage('${collage.collage_data}')" class="download-btn">
+                    <i class="fas fa-download"></i>
                   </button>
                 </div>
               </div>
@@ -937,10 +1188,293 @@ async function showHistoryScreen() {
     `;
     
   } catch (error) {
-    console.error('이력 조회 오류:', error);
+    console.error('History loading error:', error);
     hideLoading();
-    showError('이력을 불러오는데 실패했습니다.');
+    showError(t('alert.failed_load_history'));
   }
+}
+
+// 바로 컬러 헌트 시작 (히스토리에서 호출)
+async function startColorHuntDirectly() {
+  try {
+    showLoading(t('alert.loading_color'));
+    
+    // 랜덤 컬러 선택
+    const response = await axios.post('/api/color/random', {
+      user_id: currentUser
+    });
+    
+    const { color } = response.data;
+    currentColor = color;
+    
+    hideLoading();
+    
+    // 오늘 날짜 생성
+    const today = new Date().toISOString().split('T')[0];
+    
+    // 컬러 확인 화면으로 바로 이동 (confirm 버튼만 누르면 시작)
+    // color 응답이 이미 { name, hex, english, korean } 형태라고 가정
+    showColorConfirmationScreen(color, today);
+    
+  } catch (error) {
+    console.error('컬러 선택 오류:', error);
+    hideLoading();
+    showError(t('alert.failed_fetch_color'));
+  }
+}
+
+// 다국어 시스템 함수들
+
+// 스프레드시트에서 다국어 데이터 로드
+async function loadI18nData() {
+  try {
+    // 로컬 CSV 파일에서 번역 데이터 로드
+    const csvUrl = '/static/translations.csv';
+    const response = await fetch(csvUrl);
+    
+    if (!response.ok) {
+      throw new Error(`Failed to load CSV: ${response.status}`);
+    }
+    
+    const csvText = await response.text();
+    
+    // CSV 파싱하여 i18nData 구조 생성
+    parseCSVToI18n(csvText);
+    isI18nLoaded = true;
+    
+    console.log('📚 다국어 데이터 로드 완료:', Object.keys(i18nData));
+    console.log('📝 영어 키 개수:', Object.keys(i18nData.en).length);
+    console.log('📝 한국어 키 개수:', Object.keys(i18nData.ko).length);
+    console.log('📝 샘플 한국어 텍스트:', i18nData.ko['main.whats_today_color']);
+    
+  } catch (error) {
+    console.error('❌ 다국어 데이터 로드 실패:', error);
+    
+    // CSV 로드 실패 시 기본 번역 데이터 사용
+    loadFallbackTranslations();
+    isI18nLoaded = true;
+  }
+}
+
+// 기본 번역 데이터 (CSV 로드 실패 시 사용) - 업데이트된 번역 반영
+function loadFallbackTranslations() {
+  i18nData = {
+    en: {
+      'main.whats_today_color': 'Let\'s Color Hunt together!',
+      'main.discover_color': '1. Check your color of today\n2. Hunt your color during day\n3. Share it',
+      'main.start': 'Hunt',
+      'main.choose_mode': 'Choose Your Mode',
+      'main.nine_mode': 'Sqaure Mode',
+      'main.unlimited_mode': 'Unlimited Mode (15 photos)',
+      'color.today_color_is': 'Today\'s color is',
+      'color.red': 'Red',
+      'color.orange': 'Peach',
+      'color.yellow': 'Yellow',
+      'color.green': 'Green',
+      'color.blue': 'Blue',
+      'color.indigo': 'Purple',
+      'color.purple': 'Violet',
+
+      'color.black': 'Black',
+      'color.what_is_your_color': 'What is your {{color}}?',
+      'color.get_another_color': 'Get Another Color',
+      'camera.capture_photo': 'Capture Photo',
+      'camera.retake_photo': 'Retake',
+      'camera.next_photo': 'Next Photo',
+      'camera.complete_collage': 'Complete',
+      'collage.collage_completed': 'Completed!',
+      'collage.share_collage': 'Share ',
+      'collage.save_collage': 'Save to Gallery',
+      'collage.create_new_collage': 'Create New',
+      'collage.complete_collage': 'Complete',
+      'alert.loading': 'Loading...',
+      'alert.loading_session': 'Loading session...',
+      'alert.loading_color': 'Loading color...',
+      'alert.loading_history': 'Loading history...',
+      'alert.failed_start_session': 'Failed to start session',
+      'alert.failed_fetch_color': 'Failed to fetch color',
+      'alert.failed_load_history': 'Failed to load history',
+      'alert.upload_error': 'Failed to upload photo',
+      'alert.complete_error': 'Failed to complete',
+      'management.no_completed_collages': 'Hunt your first color !',
+      'management.reset': 'Reset ',
+      'management.history': 'History',
+      'management.my_collage_history': 'My History',
+      'management.create_first_collage': 'Create your first !',
+      'picture.back': 'Back',
+      'picture.delete': 'Delete',
+      'picture.take_photo': 'Take Photo',
+      'picture.take_picture': 'Take Picture {{number}}',
+      'alert.take_all_photos': 'Take at least 9 photos to complete ({{count}}/9)'
+    },
+    ko: {
+      'main.whats_today_color': '함께 컬러헌트해요!',
+      'main.discover_color': '1. 오늘의 색깔을 확인하세요\n2. 하루 종일 색깔을 찾아보세요\n3. 공유해보세요',
+      'main.start': '시작하기',
+      'main.choose_mode': '모드를 선택하세요',
+      'main.nine_mode': '정방형 모드',
+      'main.unlimited_mode': '무제한 모드 (15장)',
+      'color.today_color_is': '오늘의 색깔은',
+      'color.red': '빨강',
+      'color.orange': '주황',
+      'color.yellow': '노랑',
+      'color.green': '초록',
+      'color.blue': '파랑',
+      'color.indigo': '보라',
+      'color.purple': '자주',
+
+      'color.black': '검정',
+      'color.what_is_your_color': '당신의 {{color}}은 무엇인가요?',
+      'color.get_another_color': '다른 색깔 받기',
+      'camera.capture_photo': '사진 촬영',
+      'camera.retake_photo': '다시 촬영',
+      'camera.next_photo': '다음 사진',
+      'camera.complete_collage': '완성',
+      'collage.collage_completed': '완성!',
+      'collage.share_collage': '공유',
+      'collage.save_collage': '갤러리에 저장',
+      'collage.create_new_collage': '시작',
+      'collage.complete_collage': '완성',
+      'alert.loading': '로딩 중...',
+      'alert.loading_session': '세션 로딩 중...',
+      'alert.loading_color': '색깔 로딩 중...',
+      'alert.loading_history': '히스토리 로딩 중...',
+      'alert.failed_start_session': '세션 시작에 실패했습니다',
+      'alert.failed_fetch_color': '색깔 가져오기에 실패했습니다',
+      'alert.failed_load_history': '히스토리 로드에 실패했습니다',
+      'alert.upload_error': '사진 업로드에 실패했습니다',
+      'alert.complete_error': '완성에 실패했습니다',
+      'management.no_completed_collages': 'Hunt your first color !',
+      'management.reset': '초기화',
+      'management.history': '히스토리',
+      'management.my_collage_history': '히스토리',
+      'management.create_first_collage': '첫 번째 만들어보세요!',
+      'picture.back': '뒤로가기',
+      'picture.delete': '삭제',
+      'picture.take_photo': '사진 촬영',
+      'picture.take_picture': '{{number}}번째 사진 촬영',
+      'alert.take_all_photos': '완성하려면 최소 9장 필요 ({{count}}/9)'
+    }
+  };
+  
+  console.log('📚 기본 번역 데이터 로드됨 (fallback)');
+}
+
+// CSV 데이터를 i18n 구조로 파싱 (헤더 없는 key,value_en,value_ko 형태)
+function parseCSVToI18n(csvText) {
+  const lines = csvText.split('\n');
+  
+  i18nData = {
+    en: {},
+    ko: {}
+  };
+  
+  // 데이터 행 처리 (헤더 없음)
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line) continue;
+    
+    const columns = parseCSVLine(line);
+    
+    if (columns.length >= 3) {
+      const key = columns[0]?.trim();
+      let enValue = columns[1]?.trim().replace(/^"|"$/g, '') || '';
+      let koValue = columns[2]?.trim().replace(/^"|"$/g, '') || '';
+      
+      // \n을 실제 줄바꿈으로 변환
+      enValue = enValue.replace(/\\n/g, '\n');
+      koValue = koValue.replace(/\\n/g, '\n');
+      
+      if (key) {
+        if (enValue) i18nData.en[key] = enValue;
+        if (koValue) i18nData.ko[key] = koValue;
+      }
+    }
+  }
+}
+
+// 간단한 CSV 라인 파서 (콤마와 따옴표 처리)
+function parseCSVLine(line) {
+  const result = [];
+  let current = '';
+  let inQuotes = false;
+  
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+    
+    if (char === '"') {
+      inQuotes = !inQuotes;
+    } else if (char === ',' && !inQuotes) {
+      result.push(current);
+      current = '';
+    } else {
+      current += char;
+    }
+  }
+  
+  result.push(current);
+  return result;
+}
+
+// 다국어 텍스트 가져오기 (t 함수)
+function t(key, params = {}) {
+  if (!isI18nLoaded) {
+    // 로딩 중이면 키를 그대로 반환
+    return key;
+  }
+  
+  const langData = i18nData[currentLanguage] || i18nData.en;
+  let text = langData[key];
+  
+  // 현재 언어에 없으면 영어 폴백
+  if (!text && currentLanguage !== 'en') {
+    text = i18nData.en[key];
+  }
+  
+  // 여전히 없으면 키 자체 반환
+  if (!text) {
+    console.warn(`⚠️ Missing translation: ${key} (${currentLanguage})`);
+    return key;
+  }
+  
+  // 플레이스홀더 치환
+  return replacePlaceholders(text, params);
+}
+
+// 플레이스홀더 치환 ({{key}} 형태)
+function replacePlaceholders(text, params) {
+  return text.replace(/\{\{(\w+)\}\}/g, (match, key) => {
+    return params[key] !== undefined ? params[key] : match;
+  });
+}
+
+// 언어 변경
+function setLanguage(lang) {
+  if (lang === currentLanguage) return;
+  
+  currentLanguage = lang;
+  localStorage.setItem('colorhunt_language', lang);
+  
+  // 현재 화면 새로고침 (다국어 적용)
+  if (isI18nLoaded) {
+    refreshCurrentScreen();
+  }
+}
+
+// 현재 화면 새로고침
+function refreshCurrentScreen() {
+  // 현재 상태에 따라 적절한 화면 다시 표시
+  if (currentSession && currentSession.status === 'in_progress') {
+    showCollageScreen();
+  } else {
+    checkCurrentSession();
+  }
+}
+
+// 언어 토글
+function toggleLanguage() {
+  const newLang = currentLanguage === 'en' ? 'ko' : 'en';
+  setLanguage(newLang);
 }
 
 // 유틸리티 함수들

@@ -5,7 +5,7 @@ import { renderer } from './renderer'
 
 // Color constants definition (Rainbow 7 colors + white + black)
 const COLORS = [
-  { name: 'red', hex: '#FFB3B3', english: 'Soft Coral', korean: '빨강' },
+  { name: 'red', hex: '#FF3333', english: 'Red', korean: '빨강' },
   { name: 'orange', hex: '#FFCC99', english: 'Warm Peach', korean: '주황' },
   { name: 'yellow', hex: '#FFF2CC', english: 'Cream Yellow', korean: '노랑' },
   { name: 'green', hex: '#C6E2C7', english: 'Sage Green', korean: '초록' },
@@ -78,7 +78,7 @@ app.post('/api/color/new', async (c) => {
 // 2. New session start API
 app.post('/api/session/start', async (c) => {
   const { env } = c;
-  const { userId, color } = await c.req.json();
+  const { userId, color, mode = 'nine' } = await c.req.json();
 
   if (!userId || !color) {
     return c.json({ error: 'User ID and color are required' }, 400);
@@ -87,12 +87,21 @@ app.post('/api/session/start', async (c) => {
   const sessionId = generateId();
   const today = getTodayString();
 
-  await env.DB.prepare(`
-    INSERT INTO collage_sessions (id, user_id, color, start_date, status)
-    VALUES (?, ?, ?, ?, 'in_progress')
-  `).bind(sessionId, userId, color, today).run();
+  // 테이블에 mode 컬럼이 있는지 확인하고, 없으면 추가
+  try {
+    await env.DB.prepare(`
+      ALTER TABLE collage_sessions ADD COLUMN mode TEXT DEFAULT 'nine'
+    `).run();
+  } catch (error) {
+    // 컬럼이 이미 존재하면 무시
+  }
 
-  return c.json({ sessionId, color, date: today });
+  await env.DB.prepare(`
+    INSERT INTO collage_sessions (id, user_id, color, start_date, status, mode)
+    VALUES (?, ?, ?, ?, 'in_progress', ?)
+  `).bind(sessionId, userId, color, today, mode).run();
+
+  return c.json({ sessionId, color, date: today, mode });
 });
 
 // 3. Get current active session
@@ -387,8 +396,6 @@ app.get('/', (c) => {
   return c.render(
     <div class="min-h-screen flex items-center justify-center p-2">
       <div class="w-full max-w-md mx-auto text-center">
-        <h1 class="text-4xl font-bold mb-6">🎨 Color Hunt</h1>
-        <p class="text-gray-600 mb-8">Find today's color and create a 9-photo collage!</p>
         <div id="app"></div>
       </div>
     </div>,

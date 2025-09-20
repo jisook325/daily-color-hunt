@@ -71,7 +71,7 @@ export const renderer = jsxRenderer(({ children, ...props }) => {
               theme: {
                 extend: {
                   colors: {
-                    'color-red': '#FFB3B3',
+                    'color-red': '#FF3333',
                     'color-orange': '#FFCC99', 
                     'color-yellow': '#FFF2CC',
                     'color-green': '#C6E2C7',
