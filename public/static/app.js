@@ -118,6 +118,13 @@ async function getNewColor(excludeColor = null) {
     const { color, date } = response.data;
     currentColor = color.name;
     
+    // GA 이벤트 추적
+    trackEvent('color_selected', {
+      color_name: color.name,
+      color_korean: color.korean,
+      is_retry: !!excludeColor
+    });
+    
     hideLoading();
     showColorConfirmationScreen(color, date);
     
@@ -170,6 +177,12 @@ async function confirmColor() {
     
     currentSession = response.data;
     photoCount = 0;
+    
+    // GA 이벤트 추적
+    trackEvent('session_started', {
+      color_name: currentColor,
+      session_id: response.data.sessionId
+    });
     
     hideLoading();
     showCollageScreen();
@@ -463,9 +476,22 @@ async function savePhoto(position, imageData, thumbnailData) {
     // 진행률 업데이트
     updateProgress();
     
+    // GA 이벤트 추적
+    trackEvent('photo_captured', {
+      position: position,
+      total_photos: photoCount,
+      session_id: sessionId,
+      color_name: currentColor,
+      is_retake: wasAlreadyFilled
+    });
+    
     // 완성 체크
     if (photoCount === 9) {
       showCompletionMessage();
+      trackEvent('collage_ready', {
+        color_name: currentColor,
+        session_id: sessionId
+      });
     }
     
     showToast('📸 사진이 저장되었습니다!', 'success');
@@ -633,6 +659,13 @@ async function completeCollage() {
     
     hideLoading();
     
+    // GA 이벤트 추적
+    trackEvent('collage_completed', {
+      color_name: currentColor,
+      session_id: sessionId,
+      photo_count: actualPhotoCount
+    });
+    
     // 완성 화면 표시
     showCompletedScreen(collageData);
     
@@ -721,6 +754,12 @@ function downloadCollage(dataUrl) {
   link.download = `color-hunt-${currentColor}-${new Date().toISOString().split('T')[0]}.jpg`;
   link.href = dataUrl;
   link.click();
+  
+  // GA 이벤트 추적
+  trackEvent('collage_downloaded', {
+    color_name: currentColor || 'unknown',
+    file_name: link.download
+  });
   
   showToast('콜라주가 저장되었습니다! 📸', 'success');
 }
@@ -868,6 +907,19 @@ function showToast(message, type = 'info') {
   setTimeout(() => {
     toast.remove();
   }, 3000);
+}
+
+// Google Analytics 이벤트 추적 함수
+function trackEvent(eventName, parameters = {}) {
+  if (typeof gtag !== 'undefined') {
+    gtag('event', eventName, {
+      event_category: 'Color Hunt',
+      event_label: parameters.label || '',
+      value: parameters.value || 0,
+      ...parameters
+    });
+  }
+  console.log('GA Event:', eventName, parameters);
 }
 
 // 전역 이벤트 리스너

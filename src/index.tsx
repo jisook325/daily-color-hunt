@@ -19,6 +19,7 @@ const COLORS = [
 type Bindings = {
   DB: D1Database;
   R2: R2Bucket;
+  GA_MEASUREMENT_ID?: string;
 }
 
 const app = new Hono<{ Bindings: Bindings }>()
@@ -382,12 +383,14 @@ app.get('/api/stats/:userId', async (c) => {
 
 // 메인 페이지
 app.get('/', (c) => {
+  const { env } = c;
   return c.render(
     <div>
       <h1>🎨 Color Hunt</h1>
       <p>오늘의 컬러를 찾아 9장의 사진으로 콜라주를 만들어보세요!</p>
       <div id="app"></div>
-    </div>
+    </div>,
+    { gaId: env.GA_MEASUREMENT_ID }
   )
 })
 

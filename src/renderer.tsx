@@ -1,6 +1,7 @@
 import { jsxRenderer } from 'hono/jsx-renderer'
 
-export const renderer = jsxRenderer(({ children }) => {
+export const renderer = jsxRenderer(({ children, ...props }) => {
+  const gaId = props?.gaId || 'GA_MEASUREMENT_ID';
   return (
     <html lang="ko">
       <head>
@@ -10,7 +11,20 @@ export const renderer = jsxRenderer(({ children }) => {
         
         {/* PWA 메타데이터 */}
         <meta name="theme-color" content="#E53E3E" />
-        <meta name="description" content="오늘의 컬러를 찾아 9장의 사진으로 콜라주를 만들어보세요!" />
+        <meta name="description" content="오늘의 컬러를 찾아 9장의 사진으로 콜라주를 만들어보세요! 친구, 연인과 함께 즐기는 컬러 헌트 게임." />
+        <meta name="keywords" content="컬러헌트, 콜라주, 사진, 게임, 커플, 친구, 일상, 추억, 색깔찾기" />
+        <meta name="author" content="Color Hunt Team" />
+        
+        {/* Open Graph / Facebook */}
+        <meta property="og:type" content="website" />
+        <meta property="og:title" content="💖 Color Hunt - 컬러 콜라주" />
+        <meta property="og:description" content="오늘의 컬러를 찾아 9장의 사진으로 콜라주를 만들어보세요!" />
+        <meta property="og:site_name" content="Color Hunt" />
+        
+        {/* Twitter Card */}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="💖 Color Hunt - 컬러 콜라주" />
+        <meta name="twitter:description" content="오늘의 컬러를 찾아 9장의 사진으로 콜라주를 만들어보세요!" />
         
         {/* 아이콘 및 매니페스트 */}
         <link rel="manifest" href="/static/manifest.json" />
@@ -26,6 +40,29 @@ export const renderer = jsxRenderer(({ children }) => {
         
         {/* 커스텀 CSS */}
         <link href="/static/styles.css" rel="stylesheet" />
+        
+        {/* Google Analytics */}
+        {gaId && gaId !== 'GA_MEASUREMENT_ID' && (
+          <>
+            <script async src={`https://www.googletagmanager.com/gtag/js?id=${gaId}`}></script>
+            <script dangerouslySetInnerHTML={{
+              __html: `
+                window.dataLayer = window.dataLayer || [];
+                function gtag(){dataLayer.push(arguments);}
+                gtag('js', new Date());
+                
+                gtag('config', '${gaId}', {
+                  page_title: '💖 Color Hunt - 컬러 콜라주',
+                  send_page_view: true,
+                  custom_map: {
+                    'custom_parameter_1': 'color_name',
+                    'custom_parameter_2': 'session_id'
+                  }
+                });
+              `
+            }}></script>
+          </>
+        )}
         
         {/* Tailwind 커스텀 설정 */}
         <script dangerouslySetInnerHTML={{
