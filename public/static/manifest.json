@@ -1,0 +1,62 @@
+{
+  "name": "Color Hunt - 컬러 콜라주",
+  "short_name": "Color Hunt",
+  "description": "오늘의 컬러를 찾아 9장의 사진으로 콜라주를 만들어보세요!",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#FFD700",
+  "orientation": "portrait",
+  "scope": "/",
+  "lang": "ko",
+  "categories": ["photo", "lifestyle", "entertainment"],
+  "icons": [
+    {
+      "src": "/static/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/static/icon-512x512.png", 
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable any"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/static/screenshot-mobile.png",
+      "sizes": "375x812",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Color Hunt 모바일 화면"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "새 콜라주 시작",
+      "short_name": "새 콜라주",
+      "description": "새로운 컬러로 콜라주 만들기",
+      "url": "/",
+      "icons": [
+        {
+          "src": "/static/icon-192x192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "내 콜라주 보기",
+      "short_name": "이력",
+      "description": "완성한 콜라주 보기", 
+      "url": "/?view=history",
+      "icons": [
+        {
+          "src": "/static/icon-192x192.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "color-hunt",
+  "compatibility_date": "2025-09-20",
+  "pages_build_output_dir": "./dist",
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "color-hunt-db",
+      "database_id": "0a136d0a-f20e-431d-b802-a95903a17f3d"
+    }
+  ]
+}
