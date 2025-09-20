@@ -545,7 +545,7 @@ function loadExistingPhotos() {
   updateProgress();
 }
 
-// 15개 모드 슬롯 클릭 처리
+// 15개 모드 슬롯 클릭 처리  
 function handleSlotClick(position) {
   const slot = document.getElementById(`slot-${position}`);
   
@@ -555,7 +555,7 @@ function handleSlotClick(position) {
   } else {
     // 빈 슬롯 - 항상 다음 빈 슬롯에 촬영 (어떤 슬롯을 눌러도)
     const nextSlot = photoCount + 1;
-    if (nextSlot <= 9) {
+    if (nextSlot <= 15) { // 9 → 15로 수정
       openCameraForPosition(nextSlot);
     }
   }
@@ -627,7 +627,7 @@ function closePhotoDetail() {
 // 카메라 열기
 function openCamera() {
   // 빈 슬롯 찾기
-  for (let i = 1; i <= 9; i++) {
+  for (let i = 1; i <= 15; i++) { // 9 → 15로 수정
     const slot = document.getElementById(`slot-${i}`);
     if (!slot.classList.contains('filled')) {
       openCameraForPosition(i);
@@ -993,7 +993,7 @@ function showCompletionMessage() {
 // 현재 채워진 사진 개수 정확히 계산
 function recalculatePhotoCount() {
   let count = 0;
-  for (let i = 1; i <= 9; i++) {
+  for (let i = 1; i <= 15; i++) { // 9 → 15로 수정
     const slot = document.getElementById(`slot-${i}`);
     if (slot && slot.classList.contains('filled')) {
       count++;
@@ -1008,7 +1008,7 @@ async function completeCollage() {
   // 실제 사진 개수 재계산
   const actualPhotoCount = recalculatePhotoCount();
   
-  if (actualPhotoCount < 9) {
+  if (actualPhotoCount < 15) { // 9 → 15로 수정
     showError(`15장의 사진을 모두 촬영해주세요. (현재 ${actualPhotoCount}/15)`);
     return;
   }
