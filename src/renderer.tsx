@@ -7,24 +7,24 @@ export const renderer = jsxRenderer(({ children, ...props }) => {
       <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>🎨 Color Hunt - 오늘의 컬러 찾기</title>
+        <title>🎨 Color Hunt - Daily Color Challenge</title>
         
         {/* PWA 메타데이터 */}
         <meta name="theme-color" content="#E53E3E" />
-        <meta name="description" content="오늘의 컬러를 찾아 9장의 사진으로 콜라주를 만들어보세요! 친구, 연인과 함께 즐기는 컬러 헌트 게임." />
+        <meta name="description" content="Find today's color and create a 9-photo collage! Enjoy color hunt game with friends and loved ones. 오늘의 컬러를 찾아 9장의 사진으로 콜라주를 만들어보세요!" />
         <meta name="keywords" content="컬러헌트, 콜라주, 사진, 게임, 커플, 친구, 일상, 추억, 색깔찾기" />
         <meta name="author" content="Color Hunt Team" />
         
         {/* Open Graph / Facebook */}
         <meta property="og:type" content="website" />
-        <meta property="og:title" content="💖 Color Hunt - 컬러 콜라주" />
-        <meta property="og:description" content="오늘의 컬러를 찾아 9장의 사진으로 콜라주를 만들어보세요!" />
+        <meta property="og:title" content="💖 Color Hunt - Color Collage" />
+        <meta property="og:description" content="Find today's color and create a 9-photo collage! 오늘의 컬러를 찾아 9장의 사진으로 콜라주를 만들어보세요!" />
         <meta property="og:site_name" content="Color Hunt" />
         
         {/* Twitter Card */}
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content="💖 Color Hunt - 컬러 콜라주" />
-        <meta name="twitter:description" content="오늘의 컬러를 찾아 9장의 사진으로 콜라주를 만들어보세요!" />
+        <meta name="twitter:title" content="💖 Color Hunt - Color Collage" />
+        <meta name="twitter:description" content="Find today's color and create a 9-photo collage! 오늘의 컬러를 찾아 9장의 사진으로 콜라주를 만들어보세요!" />
         
         {/* 아이콘 및 매니페스트 */}
         <link rel="manifest" href="/static/manifest.json" />
@@ -52,7 +52,7 @@ export const renderer = jsxRenderer(({ children, ...props }) => {
                 gtag('js', new Date());
                 
                 gtag('config', '${gaId}', {
-                  page_title: '💖 Color Hunt - 컬러 콜라주',
+                  page_title: '💖 Color Hunt - Color Collage',
                   send_page_view: true,
                   custom_map: {
                     'custom_parameter_1': 'color_name',

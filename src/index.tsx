@@ -3,17 +3,17 @@ import { cors } from 'hono/cors'
 import { serveStatic } from 'hono/cloudflare-workers'
 import { renderer } from './renderer'
 
-// 컬러 상수 정의 (무지개 7색 + 흰색 + 검정색)
+// Color constants definition (Rainbow 7 colors + white + black)
 const COLORS = [
-  { name: 'red', hex: '#FF0000', korean: '빨강' },
-  { name: 'orange', hex: '#FF8C00', korean: '주황' },
-  { name: 'yellow', hex: '#FFD700', korean: '노랑' },
-  { name: 'green', hex: '#00FF00', korean: '초록' },
-  { name: 'blue', hex: '#0066FF', korean: '파랑' },
-  { name: 'indigo', hex: '#4B0082', korean: '남색' },
-  { name: 'purple', hex: '#8A2BE2', korean: '보라' },
-  { name: 'white', hex: '#FFFFFF', korean: '흰색' },
-  { name: 'black', hex: '#000000', korean: '검정' }
+  { name: 'red', hex: '#FF0000', english: 'Red', korean: '빨강' },
+  { name: 'orange', hex: '#FF8C00', english: 'Orange', korean: '주황' },
+  { name: 'yellow', hex: '#FFD700', english: 'Yellow', korean: '노랑' },
+  { name: 'green', hex: '#00FF00', english: 'Green', korean: '초록' },
+  { name: 'blue', hex: '#0066FF', english: 'Blue', korean: '파랑' },
+  { name: 'indigo', hex: '#4B0082', english: 'Indigo', korean: '남색' },
+  { name: 'purple', hex: '#8A2BE2', english: 'Purple', korean: '보라' },
+  { name: 'white', hex: '#FFFFFF', english: 'White', korean: '흰색' },
+  { name: 'black', hex: '#000000', english: 'Black', korean: '검정' }
 ];
 
 type Bindings = {
@@ -24,14 +24,14 @@ type Bindings = {
 
 const app = new Hono<{ Bindings: Bindings }>()
 
-// CORS 설정
+// CORS configuration
 app.use('/api/*', cors())
 
-// 정적 파일 서빙
+// Static file serving
 app.use('/static/*', serveStatic({ root: './public' }))
 app.use(renderer)
 
-// 유틸리티 함수들
+// Utility functions
 function generateId(): string {
   return Math.random().toString(36).substring(2) + Date.now().toString(36);
 }
@@ -47,9 +47,9 @@ function getRandomColor(excludeColor?: string): typeof COLORS[0] {
   return availableColors[Math.floor(Math.random() * availableColors.length)];
 }
 
-// API 라우트들
+// API routes
 
-// 1. 새로운 컬러 선택 API
+// 1. New color selection API
 app.post('/api/color/new', async (c) => {
   const { env } = c;
   const { userId, excludeColor } = await c.req.json();
@@ -58,7 +58,7 @@ app.post('/api/color/new', async (c) => {
     return c.json({ error: 'User ID is required' }, 400);
   }
 
-  // 오늘 완료한 마지막 컬러 확인
+  // Check last completed color for today
   const lastCompletedColor = await env.DB.prepare(`
     SELECT color FROM completed_collages 
     WHERE user_id = ? AND date = ?
@@ -75,7 +75,7 @@ app.post('/api/color/new', async (c) => {
   });
 });
 
-// 2. 새 세션 시작 API
+// 2. New session start API
 app.post('/api/session/start', async (c) => {
   const { env } = c;
   const { userId, color } = await c.req.json();
@@ -95,7 +95,7 @@ app.post('/api/session/start', async (c) => {
   return c.json({ sessionId, color, date: today });
 });
 
-// 3. 현재 진행 중인 세션 조회
+// 3. Get current active session
 app.get('/api/session/current/:userId', async (c) => {
   const { env } = c;
   const userId = c.req.param('userId');
@@ -111,24 +111,24 @@ app.get('/api/session/current/:userId', async (c) => {
     return c.json({ session: null });
   }
 
-  // 해당 세션의 사진들도 함께 조회
+  // Also fetch photos for this session
   const photos = await env.DB.prepare(`
     SELECT * FROM photos 
     WHERE session_id = ? 
     ORDER BY position ASC
   `).bind(session.id).all();
 
-  // 사진 데이터에 올바른 URL 추가 (R2 또는 Base64)
+  // Add proper URLs to photo data (R2 or Base64)
   const processedPhotos = (photos.results || []).map(photo => {
     if (photo.image_url && photo.thumbnail_url) {
-      // R2 방식 - API 엔드포인트 사용
+      // R2 method - use API endpoints
       return {
         ...photo,
         image_data: `/api/image/${photo.id}/original`,
         thumbnail_data: `/api/image/${photo.id}/thumbnail`
       };
     } else {
-      // 기존 Base64 방식 유지
+      // Maintain existing Base64 method
       return photo;
     }
   });
@@ -141,7 +141,7 @@ app.get('/api/session/current/:userId', async (c) => {
   });
 });
 
-// 4. 사진 추가 API (R2 스토리지 사용)
+// 4. Add photo API (using R2 storage)
 app.post('/api/photo/add', async (c) => {
   const { env } = c;
   const { sessionId, position, imageData, thumbnailData } = await c.req.json();
@@ -153,31 +153,31 @@ app.post('/api/photo/add', async (c) => {
   const photoId = generateId();
 
   try {
-    // 기존 사진이 있다면 R2에서 삭제
+    // Delete existing photo from R2 if exists
     const existingPhoto = await env.DB.prepare(`
       SELECT * FROM photos WHERE session_id = ? AND position = ?
     `).bind(sessionId, position).first();
 
     if (existingPhoto) {
-      // R2에서 기존 파일들 삭제
+      // Delete existing files from R2
       try {
         await env.R2.delete(`photos/${existingPhoto.id}_original.jpg`);
         await env.R2.delete(`photos/${existingPhoto.id}_thumbnail.jpg`);
       } catch (e) {
-        console.log('기존 파일 삭제 실패 (무시):', e);
+        console.log('Failed to delete existing files (ignored):', e);
       }
       
-      // DB에서 기존 레코드 삭제
+      // Delete existing record from DB
       await env.DB.prepare(`
         DELETE FROM photos WHERE session_id = ? AND position = ?
       `).bind(sessionId, position).run();
     }
 
-    // Base64 데이터를 Uint8Array로 변환
+    // Convert Base64 data to Uint8Array
     const originalImageBuffer = Uint8Array.from(atob(imageData.split(',')[1]), c => c.charCodeAt(0));
     const thumbnailImageBuffer = Uint8Array.from(atob(thumbnailData.split(',')[1]), c => c.charCodeAt(0));
 
-    // R2에 이미지 저장
+    // Save images to R2
     const originalKey = `photos/${photoId}_original.jpg`;
     const thumbnailKey = `photos/${photoId}_thumbnail.jpg`;
 
@@ -204,13 +204,13 @@ app.post('/api/photo/add', async (c) => {
       })
     ]);
 
-    // DB에 메타데이터만 저장 (R2 키 경로 저장)
+    // Save only metadata to DB (store R2 key paths)
     await env.DB.prepare(`
       INSERT INTO photos (id, session_id, position, image_url, thumbnail_url)
       VALUES (?, ?, ?, ?, ?)
     `).bind(photoId, sessionId, position, originalKey, thumbnailKey).run();
 
-    // 세션 업데이트 시간 갱신
+    // Update session timestamp
     await env.DB.prepare(`
       UPDATE collage_sessions SET updated_at = CURRENT_TIMESTAMP WHERE id = ?
     `).bind(sessionId).run();
@@ -223,16 +223,16 @@ app.post('/api/photo/add', async (c) => {
     });
 
   } catch (error) {
-    console.error('사진 저장 오류:', error);
+    console.error('Photo save error:', error);
     return c.json({ error: 'Failed to save photo' }, 500);
   }
 });
 
-// 5. 이미지 조회 API (R2에서 이미지 반환)
+// 5. Image retrieval API (return images from R2)
 app.get('/api/image/:photoId/:type', async (c) => {
   const { env } = c;
   const photoId = c.req.param('photoId');
-  const type = c.req.param('type'); // 'original' 또는 'thumbnail'
+  const type = c.req.param('type'); // 'original' or 'thumbnail'
 
   try {
     const photo = await env.DB.prepare(`

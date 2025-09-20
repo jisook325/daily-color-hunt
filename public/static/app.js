@@ -98,7 +98,7 @@ function showColorSelectionScreen() {
       <div class="mt-8">
         <button onclick="showHistoryScreen()" class="btn btn-secondary">
           <i class="fas fa-history mr-2"></i>
-          내 콜라주 보기
+          My Collages
         </button>
       </div>
     </div>
@@ -108,7 +108,7 @@ function showColorSelectionScreen() {
 // 새로운 컬러 받기
 async function getNewColor(excludeColor = null) {
   try {
-    showLoading('새로운 컬러 찾는 중...');
+    showLoading('Finding new color...');
     
     const response = await axios.post('/api/color/new', {
       userId: currentUser,
@@ -129,9 +129,9 @@ async function getNewColor(excludeColor = null) {
     showColorConfirmationScreen(color, date);
     
   } catch (error) {
-    console.error('컬러 받기 오류:', error);
+    console.error('Color fetch error:', error);
     hideLoading();
-    showError('컬러를 받아오는데 실패했습니다.');
+    showError('Failed to fetch color.');
   }
 }
 
@@ -144,21 +144,21 @@ function showColorConfirmationScreen(color, date) {
   app.innerHTML = `
     <div class="text-center animate-fade-in">
       <p class="text-sm text-gray-500 mb-4">${date}</p>
-      <p class="text-lg mb-4">오늘의 컬러는</p>
+      <p class="text-lg mb-4">Today's color is</p>
       
       <div class="color-card ${isLightColor ? 'light-color' : ''}" style="--color-hex: ${colorInfo.hex}">
-        <h2>${colorInfo.korean}</h2>
+        <h2>${colorInfo.english}</h2>
         <p class="text-lg opacity-80">${color.name.toUpperCase()}</p>
       </div>
       
       <div class="mt-8 space-y-4">
         <button onclick="confirmColor()" class="btn btn-primary w-full">
           <i class="fas fa-check mr-2"></i>
-          확인
+          Confirm
         </button>
         <button onclick="getNewColor('${color.name}')" class="btn btn-secondary w-full">
           <i class="fas fa-refresh mr-2"></i>
-          다른 컬러 받기
+          Get Another Color
         </button>
       </div>
     </div>
@@ -168,7 +168,7 @@ function showColorConfirmationScreen(color, date) {
 // 컬러 확인 후 세션 시작
 async function confirmColor() {
   try {
-    showLoading('세션 시작 중...');
+    showLoading('Starting session...');
     
     const response = await axios.post('/api/session/start', {
       userId: currentUser,
@@ -188,9 +188,9 @@ async function confirmColor() {
     showCollageScreen();
     
   } catch (error) {
-    console.error('세션 시작 오류:', error);
+    console.error('Session start error:', error);
     hideLoading();
-    showError('세션을 시작하는데 실패했습니다.');
+    showError('Failed to start session.');
   }
 }
 
@@ -318,11 +318,11 @@ function showPhotoDetail(position) {
       <div class="flex gap-2 justify-center">
         <button onclick="closeModal()" class="btn btn-secondary">
           <i class="fas fa-arrow-left mr-2"></i>
-          돌아가기
+          Go Back
         </button>
         <button onclick="deletePhoto('${photoId}', ${position})" class="btn btn-danger">
           <i class="fas fa-trash mr-2"></i>
-          삭제하기
+          Delete
         </button>
       </div>
     </div>
@@ -439,7 +439,7 @@ function capturePhoto(position) {
 // 사진 저장
 async function savePhoto(position, imageData, thumbnailData) {
   try {
-    showLoading('사진 저장 중...');
+    showLoading('Saving photo...');
     
     // 세션 ID 확인 및 디버깅
     console.log('Current session:', currentSession);
@@ -447,7 +447,7 @@ async function savePhoto(position, imageData, thumbnailData) {
     console.log('Using session ID:', sessionId);
     
     if (!sessionId) {
-      throw new Error('세션 ID를 찾을 수 없습니다.');
+      throw new Error('Session ID not found.');
     }
     
     const response = await axios.post('/api/photo/add', {
@@ -543,7 +543,7 @@ function updateProgress() {
   // 진행률 텍스트 업데이트
   const progressText = document.querySelector('.text-sm.text-gray-600');
   if (progressText) {
-    progressText.textContent = `${actualCount}/9 완료`;
+    progressText.textContent = `${actualCount}/9 completed`;
   }
   
   // 완성 버튼 업데이트
@@ -610,7 +610,7 @@ function showPreview() {
       ${previewHTML}
       <p class="text-gray-600 mb-4">${photoCount}/9 완료</p>
       <button onclick="closeModal()" class="btn btn-primary">
-        확인
+        OK
       </button>
     </div>
   `);
@@ -648,7 +648,7 @@ async function completeCollage() {
     // 세션 ID 확인
     const sessionId = currentSession.sessionId || currentSession.id;
     if (!sessionId) {
-      throw new Error('세션 ID를 찾을 수 없습니다.');
+      throw new Error('Session ID not found.');
     }
     
     // 서버에 저장
@@ -736,7 +736,7 @@ function showCompletedScreen(collageData) {
         
         <button onclick="showHistoryScreen()" class="btn btn-secondary w-full">
           <i class="fas fa-history mr-2"></i>
-          내 콜라주 보기
+          My Collages
         </button>
         
         <button onclick="startNewCollage()" class="btn btn-primary w-full">
@@ -801,7 +801,7 @@ async function showHistoryScreen() {
           <h2 class="text-xl font-bold">내 콜라주 이력</h2>
           <button onclick="checkCurrentSession()" class="btn btn-secondary">
             <i class="fas fa-arrow-left mr-2"></i>
-            돌아가기
+            Go Back
           </button>
         </div>
         
@@ -827,7 +827,7 @@ async function showHistoryScreen() {
                   </div>
                   <button onclick="downloadCollage('${collage.collage_data}')" class="btn btn-secondary w-full text-sm">
                     <i class="fas fa-download mr-1"></i>
-                    다운로드
+                    Download
                   </button>
                 </div>
               </div>
@@ -869,7 +869,7 @@ function closeModal() {
   stopCamera();
 }
 
-function showLoading(message = '처리 중...') {
+function showLoading(message = 'Processing...') {
   const loadingDiv = document.createElement('div');
   loadingDiv.id = 'loadingOverlay';
   loadingDiv.className = 'modal';
