@@ -87,7 +87,7 @@ export const renderer = jsxRenderer(({ children, ...props }) => {
           `
         }}></script>
       </head>
-      <body class="bg-gray-50 min-h-screen">
+      <body class="bg-gray-50 min-h-screen p-2 text-center" style="transition: background-color 0.5s ease;">
         {children}
         
         {/* JavaScript 라이브러리 */}

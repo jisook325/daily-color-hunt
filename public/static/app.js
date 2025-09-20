@@ -84,15 +84,19 @@ async function checkCurrentSession() {
 
 // 컬러 선택 화면
 function showColorSelectionScreen() {
+  // 배경색 초기화 (기본 회색)
+  document.body.style.backgroundColor = '#F9FAFB';
+  document.body.style.color = '#374151';
+  
   const app = document.getElementById('app');
   app.innerHTML = `
-    <div class="text-center animate-fade-in">
-      <h2 class="text-2xl font-bold mb-6">오늘의 컬러는?</h2>
-      <p class="text-gray-600 mb-8">새로운 컬러를 찾아 사진을 찍어보세요!</p>
+    <div class="text-center animate-fade-in p-4">
+      <h2 class="text-2xl font-bold mb-6">What's Today's Color?</h2>
+      <p class="text-gray-600 mb-8">Discover a new color and start taking photos!</p>
       
       <button onclick="getNewColor()" class="btn btn-primary mb-4">
         <i class="fas fa-palette mr-2"></i>
-        새로운 컬러 받기
+        Get New Color
       </button>
       
       <div class="mt-8">
@@ -140,23 +144,31 @@ function showColorConfirmationScreen(color, date) {
   const colorInfo = COLORS[color.name];
   const isLightColor = ['yellow', 'white'].includes(color.name);
   
+  // 전체 배경색 변경
+  document.body.style.backgroundColor = colorInfo.hex;
+  document.body.style.transition = 'background-color 0.5s ease';
+  
+  // 텍스트 색상 결정 (밝은 배경이면 어두운 텍스트, 어두운 배경이면 밝은 텍스트)
+  const textColor = isLightColor ? '#2D2D2D' : '#FFFFFF';
+  const buttonStyle = isLightColor ? 'dark' : 'light';
+  
   const app = document.getElementById('app');
   app.innerHTML = `
-    <div class="text-center animate-fade-in">
-      <p class="text-sm text-gray-500 mb-4">${date}</p>
+    <div class="text-center animate-fade-in p-4" style="color: ${textColor}">
+      <p class="text-sm mb-4 opacity-70">${date}</p>
       <p class="text-lg mb-4">Today's color is</p>
       
-      <div class="color-card ${isLightColor ? 'light-color' : ''}" style="--color-hex: ${colorInfo.hex}">
-        <h2>${colorInfo.english}</h2>
+      <div class="mb-8">
+        <h2 class="text-4xl font-bold mb-2">${colorInfo.english}</h2>
         <p class="text-lg opacity-80">${color.name.toUpperCase()}</p>
       </div>
       
       <div class="mt-8 space-y-4">
-        <button onclick="confirmColor()" class="btn btn-primary w-full">
+        <button onclick="confirmColor()" class="btn btn-${buttonStyle} w-full">
           <i class="fas fa-check mr-2"></i>
           Confirm
         </button>
-        <button onclick="getNewColor('${color.name}')" class="btn btn-secondary w-full">
+        <button onclick="getNewColor('${color.name}')" class="btn btn-outline-${buttonStyle} w-full">
           <i class="fas fa-refresh mr-2"></i>
           Get Another Color
         </button>
@@ -199,55 +211,66 @@ function showCollageScreen() {
   const colorInfo = COLORS[currentColor];
   const progress = Math.round((photoCount / 9) * 100);
   
+  // 배경색 유지
+  if (document.body.style.backgroundColor !== colorInfo.hex) {
+    document.body.style.backgroundColor = colorInfo.hex;
+    document.body.style.transition = 'background-color 0.5s ease';
+  }
+  
+  // 텍스트 색상 결정
+  const isLightColor = ['yellow', 'white'].includes(currentColor);
+  const textColor = isLightColor ? '#2D2D2D' : '#FFFFFF';
+  const buttonStyle = isLightColor ? 'dark' : 'light';
+  
   const app = document.getElementById('app');
   app.innerHTML = `
-    <div class="animate-fade-in">
+    <div class="animate-fade-in p-4 text-center" style="color: ${textColor}">
       <!-- 헤더 -->
-      <div class="text-center mb-6">
-        <h2 class="text-xl font-bold mb-2" style="color: ${colorInfo.hex}">
-          ${colorInfo.korean} 찾기
+      <div class="mb-6">
+        <h2 class="text-xl font-bold mb-2">
+          Find ${colorInfo.english}
         </h2>
-        <p class="text-sm text-gray-600 mb-2">${photoCount}/9 완료</p>
+        <p class="text-sm opacity-70 mb-2">${photoCount}/9 completed</p>
         
         <!-- 프로그레스 바 -->
-        <div class="progress-bar">
-          <div class="progress-fill" style="width: ${progress}%"></div>
+        <div class="progress-bar bg-black bg-opacity-20 rounded-full h-2 w-full mb-4">
+          <div class="progress-fill bg-white bg-opacity-80 h-full rounded-full transition-all duration-300" style="width: ${progress}%"></div>
         </div>
       </div>
       
       <!-- 사진 그리드 -->
-      <div class="color-grid mb-6" id="photoGrid">
-        ${generatePhotoGrid()}
+      <div class="color-grid mb-6 mx-auto" id="photoGrid" style="max-width: 300px;">
+        ${generateSequentialPhotoGrid()}
       </div>
       
       <!-- 하단 버튼들 -->
-      <div class="text-center space-y-3">
+      <div class="space-y-3">
         ${photoCount === 9 ? `
-          <button onclick="completeCollage()" class="btn btn-success w-full">
+          <button onclick="completeCollage()" class="btn btn-${buttonStyle} w-full">
             <i class="fas fa-save mr-2"></i>
-            콜라주 완성하기
+            Complete Collage
           </button>
         ` : `
-          <button onclick="openCamera()" class="btn btn-primary w-full">
+          <button onclick="openCamera()" class="btn btn-${buttonStyle} w-full">
             <i class="fas fa-camera mr-2"></i>
-            사진 찍기
+            Take Photo ${photoCount + 1}
           </button>
         `}
         
         <div class="flex gap-2">
-          <button onclick="showPreview()" class="btn btn-secondary flex-1">
+          <button onclick="showPreview()" class="btn btn-outline-${buttonStyle} flex-1">
             <i class="fas fa-eye mr-2"></i>
-            미리보기
+            Preview
           </button>
-          <button onclick="showHistoryScreen()" class="btn btn-secondary flex-1">
+          <button onclick="showHistoryScreen()" class="btn btn-outline-${buttonStyle} flex-1">
             <i class="fas fa-history mr-2"></i>
-            이력보기
+            History
           </button>
         </div>
         
-        <button onclick="resetSession()" class="btn btn-danger w-full">
-          <i class="fas fa-trash mr-2"></i>
-          처음부터 다시
+        <button onclick="resetSession()" class="btn btn-muted w-full opacity-60 hover:opacity-80 transition-opacity" style="background-color: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3);">
+          <i class="fas fa-redo mr-2"></i>
+          Start Over
         </button>
       </div>
     </div>
@@ -259,17 +282,25 @@ function showCollageScreen() {
   }
 }
 
-// 사진 그리드 생성
-function generatePhotoGrid() {
+// 순차적 사진 그리드 생성 (카메라 아이콘은 다음 빈 슬롯에만)
+function generateSequentialPhotoGrid() {
   let gridHTML = '';
+  let nextEmptySlot = photoCount + 1; // 다음 촬영할 슬롯 번호
+  
   for (let i = 1; i <= 9; i++) {
+    const showCamera = (i === nextEmptySlot && i <= 9);
     gridHTML += `
       <div class="photo-slot" id="slot-${i}" onclick="handleSlotClick(${i})">
-        <i class="fas fa-camera camera-icon"></i>
+        ${showCamera ? '<i class="fas fa-camera camera-icon"></i>' : ''}
       </div>
     `;
   }
   return gridHTML;
+}
+
+// 기존 함수 유지 (호환성을 위해)
+function generatePhotoGrid() {
+  return generateSequentialPhotoGrid();
 }
 
 // 기존 사진 로드
@@ -290,15 +321,21 @@ function loadExistingPhotos() {
   updateProgress();
 }
 
-// 슬롯 클릭 처리
+// 슬롯 클릭 처리 (순차적 촬영)
 function handleSlotClick(position) {
   const slot = document.getElementById(`slot-${position}`);
+  
   if (slot.classList.contains('filled')) {
     // 이미 있는 사진 - 크게 보기
     showPhotoDetail(position);
   } else {
-    // 빈 슬롯 - 카메라 열기
-    openCameraForPosition(position);
+    // 빈 슬롯 - 순차적 촬영만 허용
+    const nextSlot = photoCount + 1;
+    if (position === nextSlot) {
+      openCameraForPosition(position);
+    } else {
+      showToast(`Please take photos in order. Take photo ${nextSlot} first.`, 'info');
+    }
   }
 }
 
@@ -503,29 +540,69 @@ async function savePhoto(position, imageData, thumbnailData) {
   }
 }
 
-// 사진 삭제
+// 사진 삭제 (순차적 재정렬)
 async function deletePhoto(photoId, position) {
   try {
-    showLoading('삭제 중...');
+    showLoading('Deleting...');
     
     await axios.delete(`/api/photo/${photoId}`);
     
-    // UI 업데이트
-    const slot = document.getElementById(`slot-${position}`);
-    slot.innerHTML = '<i class="fas fa-camera camera-icon"></i>';
-    slot.classList.remove('filled');
-    slot.removeAttribute('data-photo-id');
+    // 모든 사진 데이터를 배열로 수집
+    const photos = [];
+    for (let i = 1; i <= 9; i++) {
+      const slot = document.getElementById(`slot-${i}`);
+      if (slot && slot.classList.contains('filled') && i !== position) {
+        const img = slot.querySelector('img');
+        const photoId = slot.getAttribute('data-photo-id');
+        if (img && photoId) {
+          photos.push({
+            id: photoId,
+            src: img.src,
+            originalPosition: i
+          });
+        }
+      }
+    }
     
-    photoCount--;
+    // 모든 슬롯 초기화
+    for (let i = 1; i <= 9; i++) {
+      const slot = document.getElementById(`slot-${i}`);
+      if (slot) {
+        slot.innerHTML = '';
+        slot.classList.remove('filled');
+        slot.removeAttribute('data-photo-id');
+      }
+    }
+    
+    // 삭제된 위치를 제외하고 앞으로 당겨서 재배치
+    photos.forEach((photo, index) => {
+      const newPosition = index + 1;
+      const slot = document.getElementById(`slot-${newPosition}`);
+      if (slot) {
+        slot.innerHTML = `<img src="${photo.src}" alt="Photo ${newPosition}">`;
+        slot.classList.add('filled');
+        slot.setAttribute('data-photo-id', photo.id);
+      }
+    });
+    
+    photoCount = photos.length;
     
     closeModal();
     hideLoading();
     updateProgress();
     
+    // 그리드 다시 그리기 (카메라 아이콘 위치 업데이트)
+    showCollageScreen();
+    
+    // 기존 사진들을 다시 로드
+    if (currentSession && currentSession.photos) {
+      loadExistingPhotos();
+    }
+    
   } catch (error) {
-    console.error('사진 삭제 오류:', error);
+    console.error('Photo delete error:', error);
     hideLoading();
-    showError('사진 삭제에 실패했습니다.');
+    showError('Failed to delete photo.');
   }
 }
 
@@ -719,29 +796,35 @@ async function generateCollageImage() {
 
 // 완성 화면
 function showCompletedScreen(collageData) {
+  // 배경색 유지 (현재 색상)
+  const colorInfo = COLORS[currentColor];
+  const isLightColor = ['yellow', 'white'].includes(currentColor);
+  const textColor = isLightColor ? '#2D2D2D' : '#FFFFFF';
+  const buttonStyle = isLightColor ? 'dark' : 'light';
+  
   const app = document.getElementById('app');
   app.innerHTML = `
-    <div class="text-center animate-fade-in">
-      <h2 class="text-2xl font-bold mb-6">🎉 콜라주 완성!</h2>
+    <div class="text-center animate-fade-in p-4" style="color: ${textColor}">
+      <h2 class="text-2xl font-bold mb-6">🎉 Collage Complete!</h2>
       
       <div class="mb-6">
-        <img src="${collageData}" alt="완성된 콜라주" class="w-full max-w-md mx-auto rounded-lg shadow-lg">
+        <img src="${collageData}" alt="Completed collage" class="w-full max-w-md mx-auto rounded-lg shadow-lg">
       </div>
       
       <div class="space-y-4">
-        <button onclick="downloadCollage('${collageData}')" class="btn btn-success w-full">
+        <button onclick="downloadCollage('${collageData}')" class="btn btn-${buttonStyle} w-full">
           <i class="fas fa-download mr-2"></i>
-          콜라주 저장하기
+          Save Collage
         </button>
         
-        <button onclick="showHistoryScreen()" class="btn btn-secondary w-full">
+        <button onclick="showHistoryScreen()" class="btn btn-outline-${buttonStyle} w-full">
           <i class="fas fa-history mr-2"></i>
           My Collages
         </button>
         
-        <button onclick="startNewCollage()" class="btn btn-primary w-full">
+        <button onclick="startNewCollage()" class="btn btn-outline-${buttonStyle} w-full">
           <i class="fas fa-plus mr-2"></i>
-          새로운 콜라주 만들기
+          Create New Collage
         </button>
       </div>
     </div>

@@ -385,10 +385,12 @@ app.get('/api/stats/:userId', async (c) => {
 app.get('/', (c) => {
   const { env } = c;
   return c.render(
-    <div>
-      <h1>🎨 Color Hunt</h1>
-      <p>오늘의 컬러를 찾아 9장의 사진으로 콜라주를 만들어보세요!</p>
-      <div id="app"></div>
+    <div class="min-h-screen flex items-center justify-center p-2">
+      <div class="w-full max-w-md mx-auto text-center">
+        <h1 class="text-4xl font-bold mb-6">🎨 Color Hunt</h1>
+        <p class="text-gray-600 mb-8">Find today's color and create a 9-photo collage!</p>
+        <div id="app"></div>
+      </div>
     </div>,
     { gaId: env.GA_MEASUREMENT_ID }
   )
