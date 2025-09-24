@@ -5,11 +5,46 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
 }
 
+/* 배경 이미지 스타일 */
+.auth-background {
+  /* 파란색 그라디언트 fallback (Color Hunt 파란색 기반) */
+  background: linear-gradient(135deg, #B3D3FF 0%, #dbeafe 50%, #e0e7ff 100%);
+}
+
+.main-background {
+  /* 파란색 그라디언트 fallback (Color Hunt 파란색 기반) */
+  background: linear-gradient(180deg, #B3D3FF 0%, #dbeafe 50%, #f0f9ff 100%);
+}
+
+/* 배경 이미지가 로드되지 않을 때를 대비한 fallback */
+.auth-background[style*="collage-background.jpg"] {
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.main-background[style*="collage-background.jpg"] {
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+/* 콜라주 배경 이미지 전용 스타일 */
+.auth-background, .main-background {
+  /* 이미지가 부족할 경우 반복하여 채우기 */
+  background-size: cover;
+  background-position: center top;
+  background-repeat: no-repeat;
+  
+  /* 이미지 크기가 작으면 파란색으로 채우기 */
+  background-color: #B3D3FF;
+}
+
 /* 컬러 그리드 스타일 */
 .color-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
+  gap: 12px;
   max-width: 300px;
   margin: 0 auto;
 }
@@ -44,7 +79,7 @@ body {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  border-radius: 8px;
+  border-radius: 12px;
 }
 
 .photo-slot .camera-icon {
@@ -594,7 +629,7 @@ body {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   grid-template-rows: repeat(5, 1fr);
-  gap: 8px;
+  gap: 12px;
   margin-bottom: 24px;
   /* 반응형 너비 설정 */
   width: min(350px, calc(100vw - 40px));
@@ -631,7 +666,7 @@ body {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  border-radius: 8px;
+  border-radius: 12px;
 }
 
 .photo-grid-modern .camera-icon {
@@ -862,7 +897,7 @@ body {
 .collage-preview {
   width: 60px;
   height: 60px;
-  border-radius: 8px;
+  border-radius: 12px;
   overflow: hidden;
   margin-right: 12px;
 }
@@ -947,7 +982,7 @@ body {
 
 .unlimited-photo-slot {
   aspect-ratio: 1;
-  border-radius: 8px;
+  border-radius: 12px;
   background: rgba(255, 255, 255, 0.2);
   border: 2px solid rgba(255, 255, 255, 0.4);
   display: flex;
@@ -1004,7 +1039,7 @@ body {
 
 .complete-requirement {
   padding: 12px;
-  border-radius: 8px;
+  border-radius: 12px;
   background: rgba(255, 255, 255, 0.1);
   text-align: center;
 }
@@ -1068,7 +1103,7 @@ body {
 
 .unlimited-photo-slot {
   aspect-ratio: 1;
-  border-radius: 8px;
+  border-radius: 12px;
   background: rgba(255, 255, 255, 0.2);
   border: 2px solid rgba(255, 255, 255, 0.4);
   display: flex;
@@ -1130,8 +1165,127 @@ body {
 .complete-requirement {
   padding: 12px;
   text-align: center;
-  border-radius: 8px;
+  border-radius: 12px;
   background: rgba(255, 255, 255, 0.1);
   font-size: 14px;
   opacity: 0.7;
+}
+
+/* 정방형 카메라 스타일 */
+.square-camera-screen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.square-camera-header {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 20px 20px 16px 20px;
+  position: relative;
+  z-index: 10;
+}
+
+.square-camera-close {
+  background: rgba(0, 0, 0, 0.3);
+  border: none;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 18px;
+  cursor: pointer;
+  backdrop-filter: blur(10px);
+}
+
+.square-camera-info {
+  text-align: center;
+}
+
+.square-photo-number {
+  font-size: 16px;
+  font-weight: 600;
+  opacity: 0.9;
+}
+
+.square-camera-color {
+  font-size: 14px;
+  font-weight: 500;
+  opacity: 0.8;
+}
+
+.square-camera-container {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.square-preview-frame {
+  width: min(350px, calc(100vw - 40px));
+  height: min(350px, calc(100vw - 40px));
+  border-radius: 12px;
+  overflow: hidden;
+  border: 2px solid rgba(255, 255, 255, 1);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  background: #000;
+}
+
+.square-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+}
+
+.square-camera-footer {
+  padding: 40px 20px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.square-capture-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.square-capture-circle {
+  width: 80px;
+  height: 80px;
+  border: 4px solid rgba(255, 255, 255, 0.8);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  transition: all 0.2s ease;
+}
+
+.square-capture-btn:active .square-capture-circle {
+  transform: scale(0.95);
+  border-color: rgba(255, 255, 255, 1);
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.square-capture-inner {
+  width: 60px;
+  height: 60px;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 50%;
 }

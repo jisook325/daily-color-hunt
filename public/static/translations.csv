@@ -2,7 +2,7 @@ main.whats_today_color,"Let's Color Hunt together!",함께 컬러헌트해요!
 main.discover_color,"1. Check your color of today\n2. Hunt your color during day\n3. Share it","1. 오늘의 색깔을 확인하세요\n2. 하루 종일 색깔을 찾아보세요\n3. 공유해보세요"
 main.start,"Hunt",시작하기
 main.choose_mode,"Choose Your Mode",모드를 선택하세요
-main.nine_mode,"Sqaure Mode",정방형 모드
+main.nine_mode,"Confirm",확인
 main.unlimited_mode,"Unlimited Mode (15 photos)",무제한 모드 (15장)
 color.today_color_is,"Today's color is",오늘의 색깔은
 color.red,"Red",빨강
@@ -10,8 +10,11 @@ color.orange,"Orange",주황
 color.yellow,"Yellow",노랑
 color.green,"Green",초록
 color.blue,"Blue",파랑
-color.indigo,"Purple",보라
-color.purple,"Violet",자주
+color.lavender,"Lavender",보라
+color.purple,"Violet",보라
+color.pink,"Pink",분홍
+color.tan,"Tan",황갈색
+color.beige,"French Beige",베이지
 
 color.black,"Black",검정
 color.what_is_your_color,"What is your {{color}}?",당신의 {{color}}은 무엇인가요?
@@ -46,3 +49,9 @@ picture.delete,"Delete",삭제
 picture.take_photo,"Take Photo","사진 촬영"
 picture.take_picture,"Take Picture {{number}}","{{number}}번째 사진 촬영"
 alert.take_all_photos,"Take at least 9 photos to complete ({{count}}/9)","완성하려면 최소 9장 필요 ({{count}}/9)"
+complete.congratulations,"🎉 Color Complete!","🎉 컬러 완성!"
+complete.save_color,"Save Color","컬러 저장"
+complete.my_colors,"My Colors","내 컬러들"
+complete.create_new_color,"Create New Color","새 컬러 만들기"
+complete.saved_successfully,"Color saved successfully! 📸","컬러가 저장되었습니다! 📸"
+management.confirm_reset,"Are you sure you want to start over? All progress will be deleted.","정말로 처음부터 다시 시작하시겠습니까? 현재 진행사항이 모두 삭제됩니다."

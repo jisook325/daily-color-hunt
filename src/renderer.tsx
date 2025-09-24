@@ -76,10 +76,13 @@ export const renderer = jsxRenderer(({ children, ...props }) => {
                     'color-yellow': '#FFF2CC',
                     'color-green': '#C6E2C7',
                     'color-blue': '#B3D3FF',
-                    'color-indigo': '#C7B3EB',
+                    'color-lavender': '#C7B3EB',
                     'color-purple': '#E0B3FF',
                     'color-white': '#FEFEFE',
-                    'color-black': '#2D2D2D'
+                    'color-black': '#2D2D2D',
+                    'color-pink': '#ffbde4',
+                    'color-tan': '#D2B48C',
+                    'color-beige': '#A67B5B'
                   }
                 }
               }

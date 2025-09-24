@@ -18,5 +18,8 @@
       "binding": "R2",
       "bucket_name": "color-hunt-images"
     }
-  ]
+  ],
+  "vars": {
+    "GA_MEASUREMENT_ID": "GA_MEASUREMENT_ID"
+  }
 }
