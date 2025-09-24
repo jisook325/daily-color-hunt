@@ -55,51 +55,42 @@ let currentLanguage = 'en'; // 기본 언어
 let i18nData = {}; // 다국어 데이터 저장소
 let isI18nLoaded = false; // 로딩 상태
 
-// 컬러 정보
+// 컬러 정보 (백엔드와 동기화됨) - 하얀색 제외
 const COLORS = {
   red: { hex: '#FF3333', english: 'Red', korean: '빨강' },
-  orange: { hex: '#FFCC99', english: 'Warm Peach', korean: '주황' },
-  yellow: { hex: '#FFF2CC', english: 'Cream Yellow', korean: '노랑' },
-  green: { hex: '#C6E2C7', english: 'Sage Green', korean: '초록' },
-  blue: { hex: '#B3D3FF', english: 'Sky Blue', korean: '파랑' },
-  indigo: { hex: '#C7B3EB', english: 'Purple', korean: '보라' },
-  purple: { hex: '#E0B3FF', english: 'Violet', korean: '자주' },
-  black: { hex: '#2D2D2D', english: 'Charcoal', korean: '검정' }
+  orange: { hex: '#FFCC99', english: 'Orange', korean: '주황' },
+  yellow: { hex: '#FFF2CC', english: 'Yellow', korean: '노랑' },
+  green: { hex: '#C6E2C7', english: 'Green', korean: '초록' },
+  blue: { hex: '#B3D3FF', english: 'Blue', korean: '파랑' },
+  lavender: { hex: '#C7B3EB', english: 'Lavender', korean: '보라' },
+  purple: { hex: '#E0B3FF', english: 'Violet', korean: '보라' },
+  // white: { hex: '#FEFEFE', english: 'White', korean: '흰색' }, // 제외: 텍스트 가독성
+  black: { hex: '#2D2D2D', english: 'Black', korean: '검정' },
+  pink: { hex: '#ffbde4', english: 'Pink', korean: '분홍' },
+  tan: { hex: '#D2B48C', english: 'Tan', korean: '황갈색' },
+  beige: { hex: '#A67B5B', english: 'French Beige', korean: '베이지' }
 };
 
-// 앱 초기화
+// 앱 초기화 - 기존 간단한 시스템으로 원복
 document.addEventListener('DOMContentLoaded', async function() {
   console.log('🎨 Color Hunt 앱 시작!');
   
-  // 사용자 ID 생성 또는 로드
+  // 사용자 ID 설정 (기존 방식)
   currentUser = getUserId();
-  
-  // 저장된 언어 설정 로드
-  const savedLanguage = localStorage.getItem('colorhunt_language');
-  if (savedLanguage && ['en', 'ko'].includes(savedLanguage)) {
-    currentLanguage = savedLanguage;
-  }
-  
-  // 메인 컨테이너 설정
-  const app = document.getElementById('app');
-  if (!app) {
-    document.body.innerHTML = `
-      <div class="min-h-screen flex items-center justify-center">
-        <div class="text-center p-8">
-          <div id="app"></div>
-        </div>
-      </div>
-    `;
-  }
   
   // 다국어 데이터 로드
   showLoading('Loading...');
   await loadI18nData();
   hideLoading();
   
-  // 현재 세션 확인 후 적절한 화면 표시
-  checkCurrentSession();
+  // 기존 라우터 및 세션 체크
+  const routeResult = initRouter();
+  handleRouteResult(routeResult);
 });
+
+// 기존 인증 로직 제거됨 - 간단한 getUserId() 기반으로 원복
+
+// 인증 화면 제거됨 - 기존 간단한 시스템으로 원복
 
 // 사용자 ID 관리
 function getUserId() {
@@ -110,6 +101,305 @@ function getUserId() {
   }
   return userId;
 }
+
+// 🔗 라우터 시스템 - 하이브리드 구조 Smart Redirection
+function initRouter() {
+  const path = window.location.pathname;
+  console.log(`🔗 현재 경로: ${path}`);
+  
+  // URL 패턴 매칭
+  if (path === '/' || path === '') {
+    // 메인 페이지 - 항상 허용
+    return 'main';
+  } else if (path.startsWith('/color/') && !path.startsWith('/color/') + '/') {
+    // /color/red → 색상 확인 화면 (0장)
+    const colorName = path.split('/color/')[1];
+    return handleColorConfirmAccess(colorName);
+  } else if (path.startsWith('/progress/')) {
+    // /progress/red/3 → 진행 중 (3장)
+    const parts = path.split('/');
+    if (parts.length >= 4) {
+      const colorName = parts[2];
+      const photoCount = parseInt(parts[3]) || 0;
+      return handleProgressPageAccess(colorName, photoCount);
+    }
+  } else if (path.startsWith('/complete/')) {
+    // /complete/red → 완성 화면
+    const colorName = path.split('/complete/')[1];
+    return handleCompletePageAccess(colorName);
+  } else if (path === '/history') {
+    // 이력 페이지 - 항상 허용
+    return 'history';
+  }
+  
+  // 알 수 없는 경로 - 메인으로 리디렉션
+  console.log('❌ 알 수 없는 경로, 메인으로 리디렉션');
+  navigateToMain();
+  return 'main';
+}
+
+// Smart Redirection 핸들러들 - 하이브리드 구조
+function handleColorConfirmAccess(colorName) {
+  const hasActiveSession = checkActiveSession();
+  const isDirectAccess = !document.referrer.includes(window.location.origin);
+  
+  console.log(`🎨 색상 확인 접근: ${colorName}, 세션: ${hasActiveSession}, 직접접근: ${isDirectAccess}`);
+  
+  // 활성 세션이 있고 이미 사진이 있으면 progress로 리디렉션
+  if (hasActiveSession && currentColor === colorName && photoCount > 0) {
+    console.log(`🔄 진행 중인 세션 감지 - progress로 리디렉션 (${photoCount}장)`);
+    navigateToProgress(colorName, photoCount);
+    return { type: 'progress', color: colorName, count: photoCount };
+  }
+  
+  // 직접 접근이면서 다른 색상 세션이 있는 경우
+  if (isDirectAccess && hasActiveSession && currentColor !== colorName) {
+    console.log(`⚠️ 다른 색상 세션 진행 중 - 기존 세션으로 리디렉션`);
+    navigateToProgress(currentColor, photoCount);
+    return { type: 'progress', color: currentColor, count: photoCount };
+  }
+  
+  console.log('✅ 색상 확인 화면 진입');
+  return { type: 'color_confirm', color: colorName };
+}
+
+function handleProgressPageAccess(colorName, requestedCount) {
+  const hasActiveSession = checkActiveSession();
+  const sessionPhotoCount = photoCount || 0;
+  
+  console.log(`📊 진행 페이지 접근: ${colorName}/${requestedCount}, 세션: ${hasActiveSession}, 실제: ${sessionPhotoCount}장`);
+  
+  // 세션이 없으면 메인으로
+  if (!hasActiveSession) {
+    console.log('⚠️ 활성 세션 없음 - 메인으로 리디렉션');
+    navigateToMain();
+    return 'main';
+  }
+  
+  // 색상이 다르면 실제 세션으로 리디렉션
+  if (currentColor !== colorName) {
+    console.log(`⚠️ 색상 불일치 - 실제 세션으로 리디렉션: ${currentColor}`);
+    navigateToProgress(currentColor, sessionPhotoCount);
+    return { type: 'progress', color: currentColor, count: sessionPhotoCount };
+  }
+  
+  // 사진 수가 다르면 실제 상태로 리디렉션
+  if (sessionPhotoCount !== requestedCount) {
+    console.log(`🔄 사진 수 불일치 - 실제 상태로 리디렉션: ${sessionPhotoCount}장`);
+    navigateToProgress(colorName, sessionPhotoCount);
+    return { type: 'progress', color: colorName, count: sessionPhotoCount };
+  }
+  
+  console.log('✅ 진행 페이지 정상 진입');
+  return { type: 'progress', color: colorName, count: requestedCount };
+}
+
+function handleCompletePageAccess(colorName) {
+  const hasActiveSession = checkActiveSession();
+  const isDirectAccess = !document.referrer.includes(window.location.origin);
+  
+  console.log(`🎉 완성 페이지 접근: ${colorName}, 세션: ${hasActiveSession}, 직접접근: ${isDirectAccess}`);
+  
+  // 직접 접근이면서 세션이 없거나 색상이 다른 경우
+  if (isDirectAccess && (!hasActiveSession || currentColor !== colorName)) {
+    console.log('⚠️ 직접 접근 차단 - 메인으로 리디렉션');
+    navigateToMain();
+    return 'main';
+  }
+  
+  // 세션은 있지만 완성되지 않은 경우
+  if (hasActiveSession && currentColor === colorName && photoCount < 15) {
+    console.log(`🔄 미완성 세션 - 진행 화면으로 리디렉션 (${photoCount}장)`);
+    navigateToProgress(colorName, photoCount);
+    return { type: 'progress', color: colorName, count: photoCount };
+  }
+  
+  console.log('✅ 완성 페이지 정상 진입');
+  return { type: 'complete', color: colorName };
+}
+
+// 활성 세션 체크 (동기 버전)
+function checkActiveSession() {
+  try {
+    const cachedSession = localStorage.getItem('colorhunt_current_session');
+    if (!cachedSession) return false;
+    
+    const session = JSON.parse(cachedSession);
+    const sessionAge = Date.now() - new Date(session.created_at).getTime();
+    return sessionAge < 24 * 60 * 60 * 1000 && session.status === 'in_progress';
+  } catch (e) {
+    console.error('세션 체크 오류:', e);
+    return false;
+  }
+}
+
+// 🧭 네비게이션 함수들 - 하이브리드 구조
+function navigateToMain() {
+  if (window.location.pathname !== '/') {
+    console.log('📍 메인 페이지로 리디렉션');
+    window.history.replaceState(null, '', '/');
+    trackPageView('/');
+  }
+}
+
+function navigateToColorConfirm(colorName) {
+  const newPath = `/color/${colorName}`;
+  console.log(`📍 색상 확인 페이지로 이동: ${newPath}`);
+  window.history.pushState({ 
+    type: 'color_confirm', 
+    color: colorName 
+  }, '', newPath);
+  trackPageView(newPath);
+}
+
+function navigateToProgress(colorName, photoCount) {
+  const newPath = `/progress/${colorName}/${photoCount}`;
+  console.log(`📍 진행 페이지로 이동: ${newPath} (${photoCount}장)`);
+  window.history.pushState({ 
+    type: 'progress', 
+    color: colorName, 
+    count: photoCount 
+  }, '', newPath);
+  trackPageView(newPath, { photo_count: photoCount });
+}
+
+function navigateToComplete(colorName) {
+  const newPath = `/complete/${colorName}`;
+  console.log(`📍 완성 페이지로 이동: ${newPath}`);
+  window.history.pushState({ 
+    type: 'complete', 
+    color: colorName 
+  }, '', newPath);
+  trackPageView(newPath);
+}
+
+function navigateToHistory() {
+  const newPath = '/history';
+  console.log(`📍 히스토리 페이지로 이동: ${newPath}`);
+  window.history.pushState({ page: 'history' }, '', newPath);
+  trackPageView(newPath);
+}
+
+// 기존 호환성을 위한 래퍼 함수들
+function navigateToColor(colorName) {
+  navigateToColorConfirm(colorName);
+}
+
+// 📊 GA 트래킹 함수
+function trackPageView(path) {
+  try {
+    if (typeof gtag !== 'undefined') {
+      console.log(`📊 GA 페이지뷰 전송: ${path}`);
+      gtag('event', 'page_view', {
+        page_path: path,
+        page_title: getPageTitle(path),
+        page_location: window.location.href,
+        color_name: currentColor || 'none',
+        session_id: currentSession?.sessionId || 'none'
+      });
+    } else {
+      console.log(`📊 GA 미설정 - 페이지뷰 무시: ${path}`);
+    }
+  } catch (error) {
+    console.error('GA 트래킹 오류:', error);
+  }
+}
+
+function getPageTitle(path) {
+  if (path === '/') return 'Color Hunt - Home';
+  if (path.startsWith('/color/')) return `Color Hunt - ${path.split('/')[2]} Confirm`;
+  if (path.startsWith('/progress/')) {
+    const parts = path.split('/');
+    return `Color Hunt - ${parts[2]} Progress (${parts[3] || 0} photos)`;
+  }
+  if (path.startsWith('/complete/')) return `Color Hunt - ${path.split('/')[2]} Complete`;
+  if (path === '/history') return 'Color Hunt - History';
+  return 'Color Hunt';
+}
+
+// 라우트 결과 처리 - 하이브리드 구조
+function handleRouteResult(routeResult) {
+  if (typeof routeResult === 'string') {
+    if (routeResult === 'main') {
+      checkCurrentSession(); // 기존 메인 로직
+    } else if (routeResult === 'history') {
+      showHistoryScreen();
+    }
+  } else if (typeof routeResult === 'object') {
+    switch (routeResult.type) {
+      case 'color_confirm':
+        // 색상 확인 화면
+        showColorConfirmationScreen(routeResult.color);
+        break;
+      case 'progress':
+        // 진행 화면 - 세션 복원 후 콜라주 화면
+        restoreProgressSession(routeResult.color, routeResult.count);
+        break;
+      case 'complete':
+        // 완성 화면 - 완성된 콜라주 표시
+        restoreCompleteSession(routeResult.color);
+        break;
+      default:
+        console.log('알 수 없는 라우트 타입:', routeResult.type);
+        navigateToMain();
+    }
+  }
+}
+
+// 세션 복원 함수들 - 하이브리드 구조
+async function restoreProgressSession(colorName, expectedCount) {
+  console.log(`🔄 진행 세션 복원: ${colorName}, 예상 ${expectedCount}장`);
+  
+  // 현재 세션 복원
+  await checkCurrentSession();
+  
+  // 실제 상태와 URL이 일치하는지 확인
+  const actualCount = photoCount || 0;
+  if (actualCount !== expectedCount || currentColor !== colorName) {
+    console.log(`🔄 상태 불일치 감지 - URL 업데이트: ${actualCount}장`);
+    navigateToProgress(currentColor, actualCount);
+  }
+}
+
+async function restoreCompleteSession(colorName) {
+  console.log(`🔄 완성 세션 복원: ${colorName}`);
+  
+  // 완성된 콜라주 데이터 조회 필요
+  try {
+    const response = await axios.get(`/api/history/${currentUser}?limit=1&color=${colorName}`);
+    const { collages } = response.data;
+    
+    if (collages && collages.length > 0) {
+      const latestCollage = collages[0];
+      showCompletedScreen(latestCollage.collage_data);
+    } else {
+      console.log('⚠️ 완성된 콜라주 없음 - 메인으로 이동');
+      navigateToMain();
+      checkCurrentSession();
+    }
+  } catch (error) {
+    console.error('완성 세션 복원 오류:', error);
+    navigateToMain();
+    checkCurrentSession();
+  }
+}
+
+function showColorConfirmationScreen(colorName) {
+  // 색상 확인 화면을 표시하는 기존 함수가 있는지 확인
+  // 없다면 색상 선택 화면을 표시
+  if (typeof getNewColor === 'function') {
+    getNewColor(); // 새 색상 가져오기
+  } else {
+    showColorSelectionScreen(); // 기존 색상 선택 화면
+  }
+}
+
+// 🔙 뒤로가기 이벤트 핸들링
+window.addEventListener('popstate', (event) => {
+  console.log('🔙 뒤로가기 감지:', event.state);
+  const routeResult = initRouter();
+  handleRouteResult(routeResult);
+});
 
 // 현재 세션 확인 (캐싱 최적화)
 async function checkCurrentSession() {
@@ -167,7 +457,7 @@ async function checkCurrentSession() {
   }
 }
 
-// 컬러 선택 화면
+// 컬러 선택 화면 (메인 화면)
 function showColorSelectionScreen() {
   // 배경색 초기화 (기본 회색)
   document.body.style.backgroundColor = '#F9FAFB';
@@ -175,16 +465,26 @@ function showColorSelectionScreen() {
   
   const app = document.getElementById('app');
   app.innerHTML = `
-    <div class="text-center animate-fade-in p-4">
-      <h1 class="text-3xl font-bold mb-8 text-gray-800">${t('main.whats_today_color')}</h1>
-      
-      <div class="text-gray-600 leading-relaxed whitespace-pre-line mb-8">
-        ${t('main.discover_color')}
+    <div class="main-container min-h-screen relative flex items-center justify-center p-4">
+      <!-- 메인 배경 이미지 레이어 -->
+      <div class="main-background absolute inset-0 bg-cover bg-center bg-no-repeat opacity-40" 
+           style="background-image: url('/static/collage-background.jpg');">
+        <!-- 그라디언트 오버레이 -->
+        <div class="absolute inset-0 bg-gradient-to-b from-blue-50/60 to-blue-100/60"></div>
       </div>
       
-      <button onclick="getNewColor()" class="btn btn-primary mb-4 w-full py-4 text-lg">
-        ${t('main.start')}
-      </button>
+      <!-- 콘텐츠 레이어 - 박스 제거하고 직접 배치 -->
+      <div class="main-content relative text-center animate-fade-in max-w-md w-full">
+        <h1 class="text-4xl font-bold mb-8 drop-shadow-lg" style="color: #0A18B1; -webkit-text-stroke: 1px #ffffff; text-stroke: 1px #ffffff;">${t('main.whats_today_color')}</h1>
+        
+        <div class="text-lg leading-relaxed whitespace-pre-line mb-8 drop-shadow-md" style="color: #3445FF;">
+          ${t('main.discover_color')}
+        </div>
+        
+        <button onclick="getNewColor()" class="btn btn-primary mb-4 w-full py-4 text-lg shadow-lg hover:shadow-xl transition-all duration-200 font-semibold backdrop-blur-sm border border-white/50" style="background-color: #3445FF; color: #ffffff; border-color: #3445FF;">
+          ${t('main.start')}
+        </button>
+      </div>
     </div>
   `;
 }
@@ -311,6 +611,7 @@ async function confirmColor() {
     });
     
     hideLoading();
+    navigateToProgress(currentColor, 0);
     showCollageScreen();
     
   } catch (error) {
@@ -391,7 +692,7 @@ function showNineCollageScreen() {
           <button onclick="resetSession()" class="text-action-btn">
             ${t('management.reset')}
           </button>
-          <button onclick="showHistoryScreen()" class="text-action-btn">
+          <button onclick="navigateToHistory(); showHistoryScreen()" class="text-action-btn">
             ${t('management.history')}
           </button>
 
@@ -461,7 +762,7 @@ function showUnlimitedCollageScreen() {
           <button onclick="resetSession()" class="text-action-btn">
             ${t('management.reset')}
           </button>
-          <button onclick="showHistoryScreen()" class="text-action-btn">
+          <button onclick="navigateToHistory(); showHistoryScreen()" class="text-action-btn">
             ${t('management.history')}
           </button>
 
@@ -476,16 +777,14 @@ function showUnlimitedCollageScreen() {
   }
 }
 
-// 15개 모드 그리드 생성 (3x5 레이아웃)
+// 15개 모드 그리드 생성 (3x5 레이아웃) - 카메라 아이콘 제거
 function generateNinePhotoGrid() {
   let gridHTML = '';
-  let nextEmptySlot = photoCount + 1;
   
   for (let i = 1; i <= 15; i++) {
-    const showCamera = (i === nextEmptySlot && i <= 15);
     gridHTML += `
       <div class="photo-slot" id="slot-${i}" onclick="handleSlotClick(${i})">
-        ${showCamera ? '<i class="fas fa-camera camera-icon"></i>' : ''}
+        <!-- 빈 슬롯 (카메라 아이콘 제거) -->
       </div>
     `;
   }
@@ -630,39 +929,33 @@ function openCameraForPosition(position) {
   const colorInfo = COLORS[currentColor];
   const isLightColor = ['yellow'].includes(currentColor);
   
-  // 전체 화면 카메라 인터페이스로 변경
+  // 정방형 카메라 인터페이스 (색상 배경)
   const app = document.getElementById('app');
+  const textColor = isLightColor ? '#2D2D2D' : '#FFFFFF';
+  
   app.innerHTML = `
-    <div class="fullscreen-camera animate-fade-in">
-      <!-- 카메라 뷰 -->
-      <video id="cameraPreview" class="fullscreen-video" autoplay playsinline></video>
-      
-      <!-- 상단 컨트롤 -->
-      <div class="camera-header">
-        <button onclick="closeCameraView()" class="camera-back-btn">
-          <i class="fas fa-arrow-left"></i>
+    <div class="square-camera-screen animate-fade-in" style="background-color: ${colorInfo.hex}; color: ${textColor};">
+      <!-- 상단 닫기 버튼만 -->
+      <div class="square-camera-header">
+        <button onclick="closeCameraView()" class="square-camera-close">
+          <i class="fas fa-times"></i>
         </button>
-        <div class="camera-info">
-          <span class="photo-number">Photo ${position}</span>
-          <span class="color-name">Find ${t('color.' + currentColor)}</span>
+      </div>
+      
+      <!-- 정방형 카메라 프리뷰 -->
+      <div class="square-camera-container">
+        <div class="square-preview-frame">
+          <video id="cameraPreview" class="square-video" autoplay playsinline></video>
         </div>
       </div>
       
-      <!-- 하단 컨트롤 -->
-      <div class="camera-footer">
-        <div class="camera-controls-fullscreen">
-          <button onclick="closeCameraView()" class="cancel-btn-fullscreen">
-            <i class="fas fa-times"></i>
-          </button>
-          
-          <button onclick="capturePhoto(${position})" class="capture-btn-fullscreen">
-            <div class="capture-circle">
-              <div class="capture-inner"></div>
-            </div>
-          </button>
-          
-          <div class="camera-spacer"></div>
-        </div>
+      <!-- 하단 촬영 버튼 -->
+      <div class="square-camera-footer">
+        <button onclick="capturePhoto(${position})" class="square-capture-btn">
+          <div class="square-capture-circle">
+            <div class="square-capture-inner"></div>
+          </div>
+        </button>
       </div>
       
       <canvas id="captureCanvas" style="display: none;"></canvas>
@@ -724,7 +1017,7 @@ function stopCamera() {
   }
 }
 
-// 사진 촬영
+// 사진 촬영 (정방형 크롭 및 리사이징)
 function capturePhoto(position) {
   const video = document.getElementById('cameraPreview');
   const canvas = document.getElementById('captureCanvas');
@@ -732,28 +1025,33 @@ function capturePhoto(position) {
   if (!video || !canvas) return;
   
   const ctx = canvas.getContext('2d');
-  canvas.width = video.videoWidth;
-  canvas.height = video.videoHeight;
   
-  ctx.drawImage(video, 0, 0);
+  // 정방형 크롭 계산
+  const size = Math.min(video.videoWidth, video.videoHeight);
+  const x = (video.videoWidth - size) / 2;
+  const y = (video.videoHeight - size) / 2;
   
-  // 원본 이미지
-  const imageData = canvas.toDataURL('image/jpeg', 0.8);
+  // 원본 이미지 (정방형, 적당한 크기로 리사이징)
+  const originalSize = 800; // 800x800으로 제한 (Storage 문제 해결)
+  canvas.width = originalSize;
+  canvas.height = originalSize;
   
-  // 썸네일 생성
+  // 정방형으로 크롭하여 원본 생성
+  ctx.drawImage(video, x, y, size, size, 0, 0, originalSize, originalSize);
+  const imageData = canvas.toDataURL('image/jpeg', 0.85); // 품질 85%
+  
+  // 썸네일 생성 (200x200)
   const thumbnailSize = 200;
   const thumbnailCanvas = document.createElement('canvas');
   thumbnailCanvas.width = thumbnailSize;
   thumbnailCanvas.height = thumbnailSize;
   const thumbCtx = thumbnailCanvas.getContext('2d');
   
-  // 정사각형으로 크롭
-  const size = Math.min(canvas.width, canvas.height);
-  const x = (canvas.width - size) / 2;
-  const y = (canvas.height - size) / 2;
+  // 동일한 정방형 크롭으로 썸네일 생성
+  thumbCtx.drawImage(video, x, y, size, size, 0, 0, thumbnailSize, thumbnailSize);
+  const thumbnailData = thumbnailCanvas.toDataURL('image/jpeg', 0.8); // 품질 80%
   
-  thumbCtx.drawImage(canvas, x, y, size, size, 0, 0, thumbnailSize, thumbnailSize);
-  const thumbnailData = thumbnailCanvas.toDataURL('image/jpeg', 0.7);
+  console.log(`📸 Photo captured: Original=${originalSize}x${originalSize}, Thumbnail=${thumbnailSize}x${thumbnailSize}`);
   
   // 서버에 저장
   savePhoto(position, imageData, thumbnailData);
@@ -820,6 +1118,9 @@ async function savePhoto(position, imageData, thumbnailData) {
     
     hideLoading();
     
+    // URL 업데이트 (사진 개수 반영)
+    navigateToProgress(currentColor, photoCount);
+    
     // 진행률 업데이트
     updateProgress();
     
@@ -846,78 +1147,153 @@ async function savePhoto(position, imageData, thumbnailData) {
   } catch (error) {
     console.error('사진 저장 오류:', error);
     hideLoading();
-    showError('사진 저장에 실패했습니다: ' + error.message);
+    
+    // 더 자세한 오류 메시지 처리
+    let errorMessage = 'Failed to save photo';
+    
+    if (error.response) {
+      // 서버에서 응답한 오류
+      const status = error.response.status;
+      const data = error.response.data;
+      
+      console.error('Server error details:', { status, data });
+      
+      if (status === 413) {
+        errorMessage = 'Image too large. Please try again.';
+      } else if (status === 507) {
+        errorMessage = 'Storage limit exceeded. Please contact support.';
+      } else if (data && data.error) {
+        errorMessage = data.error;
+      } else {
+        errorMessage = `Server error (${status})`;
+      }
+    } else if (error.message) {
+      errorMessage = error.message;
+    }
+    
+    showError(errorMessage);
   }
 }
 
 // 사진 삭제 (순차적 재정렬)
 async function deletePhoto(photoId, position) {
   try {
+    // 1. 로컬 세션 데이터에서 먼저 삭제 (즉시 반영)
+    updateLocalSessionData(photoId);
+    
+    // 2. DOM 업데이트 (사용자에게 즉시 반영)
+    updateUIAfterDelete(position);
+    
     showLoading('Deleting...');
     
+    // 3. 서버에서 삭제
     await axios.delete(`/api/photo/${photoId}`);
     
-    // 모든 사진 데이터를 배열로 수집
-    const photos = [];
-    for (let i = 1; i <= 15; i++) {
-      const slot = document.getElementById(`slot-${i}`);
-      if (slot && slot.classList.contains('filled') && i !== position) {
-        const img = slot.querySelector('img');
-        const photoId = slot.getAttribute('data-photo-id');
-        if (img && photoId) {
-          photos.push({
-            id: photoId,
-            src: img.src,
-            originalPosition: i
-          });
-        }
-      }
-    }
-    
-    // 모든 슬롯 초기화
-    for (let i = 1; i <= 15; i++) {
-      const slot = document.getElementById(`slot-${i}`);
-      if (slot) {
-        slot.innerHTML = '';
-        slot.classList.remove('filled');
-        slot.removeAttribute('data-photo-id');
-      }
-    }
-    
-    // 삭제된 위치를 제외하고 앞으로 당겨서 재배치
-    photos.forEach((photo, index) => {
-      const newPosition = index + 1;
-      const slot = document.getElementById(`slot-${newPosition}`);
-      if (slot) {
-        slot.innerHTML = `<img src="${photo.src}" alt="Photo ${newPosition}">`;
-        slot.classList.add('filled');
-        slot.setAttribute('data-photo-id', photo.id);
-      }
-    });
-    
-    photoCount = photos.length;
-    
-    // 브라우저 캐시에서 삭제된 이미지 강제 제거
-    const deletedPhotoSlot = document.getElementById(`slot-${position}`);
-    if (deletedPhotoSlot) {
-      const img = deletedPhotoSlot.querySelector('img');
-      if (img && img.src) {
-        // 이미지 캐시 무효화
-        img.src = '';
-        img.removeAttribute('src');
-      }
-    }
-    
-    closeModal();
     hideLoading();
-    
-    // 콜라주 화면을 완전히 새로고침하여 캐시 문제 해결
-    showCollageScreen();
+    closePhotoDetail();
     
   } catch (error) {
     console.error('Photo delete error:', error);
     hideLoading();
-    showError('Failed to delete photo.');
+    
+    // 4. 실패 시에만 서버 재동기화로 복구
+    console.warn('Delete failed. Please try again.');
+    try {
+      await syncWithServer();
+      showError('Delete failed. Please try again.');
+    } catch (syncError) {
+      showError('Delete failed. Please refresh the app.');
+    }
+  }
+}
+
+// 로컬 세션 데이터 업데이트
+function updateLocalSessionData(photoId) {
+  if (currentSession && currentSession.photos) {
+    // 세션에서 해당 사진 제거
+    currentSession.photos = currentSession.photos.filter(photo => photo.id !== photoId);
+    
+    // 위치 재정렬 (1, 2, 3... 순서로)
+    currentSession.photos.forEach((photo, index) => {
+      photo.position = index + 1;
+    });
+    
+    // localStorage 캐시 업데이트
+    localStorage.setItem('colorhunt_current_session', JSON.stringify(currentSession));
+    
+    // 전역 photoCount 업데이트
+    photoCount = currentSession.photos.length;
+  }
+}
+
+// UI 업데이트 (DOM 조작)
+function updateUIAfterDelete(deletedPosition) {
+  // 모든 사진 데이터를 배열로 수집 (삭제된 위치 제외)
+  const photos = [];
+  for (let i = 1; i <= 15; i++) {
+    const slot = document.getElementById(`slot-${i}`);
+    if (slot && slot.classList.contains('filled') && i !== deletedPosition) {
+      const img = slot.querySelector('img');
+      const photoId = slot.getAttribute('data-photo-id');
+      if (img && photoId) {
+        photos.push({
+          id: photoId,
+          src: img.src,
+          originalPosition: i
+        });
+      }
+    }
+  }
+  
+  // 모든 슬롯 초기화
+  for (let i = 1; i <= 15; i++) {
+    const slot = document.getElementById(`slot-${i}`);
+    if (slot) {
+      slot.innerHTML = '';
+      slot.classList.remove('filled');
+      slot.removeAttribute('data-photo-id');
+    }
+  }
+  
+  // 앞으로 당겨서 재배치 (1, 2, 3... 순서)
+  photos.forEach((photo, index) => {
+    const newPosition = index + 1;
+    const slot = document.getElementById(`slot-${newPosition}`);
+    if (slot) {
+      slot.innerHTML = `<img src="${photo.src}" alt="Photo ${newPosition}">`;
+      slot.classList.add('filled');
+      slot.setAttribute('data-photo-id', photo.id);
+    }
+  });
+  
+  // 전역 카운트 업데이트
+  photoCount = photos.length;
+  
+  // URL 업데이트 (삭제 후 사진 개수 반영)
+  navigateToProgress(currentColor, photoCount);
+}
+
+// 서버와 재동기화 (복구용)
+async function syncWithServer() {
+  try {
+    const response = await axios.get(`/api/session/current/${currentUser}`);
+    const { session } = response.data;
+    
+    if (session && session.status === 'in_progress') {
+      // 서버 데이터로 교체
+      currentSession = session;
+      currentColor = session.color;
+      photoCount = session.photos?.length || 0;
+      
+      // localStorage 업데이트
+      localStorage.setItem('colorhunt_current_session', JSON.stringify(session));
+      
+      // UI 완전 새로고침
+      showCollageScreen();
+    }
+  } catch (error) {
+    console.error('Sync with server failed:', error);
+    throw error;
   }
 }
 
@@ -927,44 +1303,45 @@ function updateProgress() {
   const actualCount = recalculatePhotoCount();
   const progress = Math.round((actualCount / 15) * 100);
   
-  const progressFill = document.querySelector('.progress-fill');
+  // 모던 프로그레스 바 업데이트 (새로운 클래스명 사용)
+  const progressFill = document.querySelector('.progress-fill-modern');
   if (progressFill) {
     progressFill.style.width = `${progress}%`;
   }
   
-  // 진행률 텍스트 업데이트
-  const progressText = document.querySelector('.text-sm.text-gray-600');
+  // 진행률 텍스트 업데이트 (새로운 구조에 맞게)
+  const progressText = document.querySelector('.progress-text');
   if (progressText) {
-    progressText.textContent = `${actualCount}/9 completed`;
+    progressText.textContent = `${actualCount} / 15`;
   }
   
-  // 완성 버튼 업데이트
+  // 완성 버튼 업데이트 (안전한 방식으로)
   updateCompleteButton(actualCount);
 }
 
-// 완성 버튼 상태 업데이트
+// 완성 버튼 상태 업데이트 (안전한 DOM 조작)
 function updateCompleteButton(photoCount) {
-  // 콜라주 화면에서만 버튼 업데이트
+  // 메인 액션 버튼만 찾기 (secondary-actions는 건드리지 않음)
   const completeButton = document.querySelector('button[onclick="completeCollage()"]');
   const cameraButton = document.querySelector('button[onclick="openCamera()"]');
   
   if (photoCount === 15) {
-    if (cameraButton && cameraButton.parentNode) {
-      cameraButton.parentNode.innerHTML = `
-        <button onclick="completeCollage()" class="btn btn-success w-full">
-          <i class="fas fa-save mr-2"></i>
-          콜라주 완성하기
-        </button>
-      `;
+    // 15장 완료 시: 카메라 버튼을 완성 버튼으로 교체
+    if (cameraButton) {
+      // 기존 버튼의 속성과 클래스 유지하면서 내용만 변경
+      cameraButton.onclick = () => completeCollage();
+      cameraButton.innerHTML = `${t('collage.complete_collage')}`;
+      // 클래스도 완성 버튼 스타일로 변경
+      cameraButton.className = cameraButton.className.replace('photo-btn', 'complete-btn');
     }
   } else {
-    if (completeButton && completeButton.parentNode) {
-      completeButton.parentNode.innerHTML = `
-        <button onclick="openCamera()" class="btn btn-primary w-full">
-          <i class="fas fa-camera mr-2"></i>
-          사진 찍기
-        </button>
-      `;
+    // 15장 미만: 완성 버튼을 카메라 버튼으로 교체  
+    if (completeButton) {
+      // 기존 버튼의 속성과 클래스 유지하면서 내용만 변경
+      completeButton.onclick = () => openCamera();
+      completeButton.innerHTML = `${t('picture.take_photo')}`;
+      // 클래스도 카메라 버튼 스타일로 변경
+      completeButton.className = completeButton.className.replace('complete-btn', 'photo-btn');
     }
   }
 }
@@ -977,6 +1354,8 @@ function showCompletionMessage() {
 }
 
 // 미리보기 기능 제거됨 (디자인 간소화)
+
+// 테스트용 함수 제거됨 (실서버 배포용)
 
 // 현재 채워진 사진 개수 정확히 계산
 function recalculatePhotoCount() {
@@ -1029,6 +1408,7 @@ async function completeCollage() {
     });
     
     // 완성 화면 표시
+    navigateToComplete(currentColor);
     showCompletedScreen(collageData);
     
   } catch (error) {
@@ -1053,57 +1433,158 @@ function drawRoundedRect(ctx, x, y, width, height, radius) {
   ctx.closePath();
 }
 
-// 콜라주 이미지 생성 (3x5 = 15장)
+// 콜라주 이미지 생성 (3x5 = 15장) - 둥근 모서리와 적절한 간격 적용
 async function generateCollageImage() {
-  return new Promise((resolve) => {
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    
-    // 3x5 레이아웃: 900x1500 (각 셀 300x300)
-    const cellSize = 300;
-    const gap = 12; // 슬롯 간격 (8 → 12로 1.5배 증가)
-    const radius = 8; // border-radius
-    const margin = gap; // 상하좌우 여백 (간격과 동일)
-    
-    // 여백 포함 캔버스 크기 계산
-    canvas.width = 3 * cellSize + 2 * gap + 2 * margin;  // 948px
-    canvas.height = 5 * cellSize + 4 * gap + 2 * margin; // 1548px
-    
-    // 배경색을 선택된 컬러로 설정
-    const colorInfo = COLORS[currentColor];
-    ctx.fillStyle = colorInfo.hex;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    
-    let loadedImages = 0;
-    
-    for (let i = 1; i <= 15; i++) {
-      const slot = document.getElementById(`slot-${i}`);
-      const img = slot.querySelector('img');
+  return new Promise((resolve, reject) => {
+    try {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
       
-      if (img) {
-        const newImg = new Image();
-        newImg.onload = () => {
-          const row = Math.floor((i-1) / 3);
-          const col = (i-1) % 3;
-          const x = margin + col * (cellSize + gap); // 여백 추가
-          const y = margin + row * (cellSize + gap); // 여백 추가
+      // 파란색 화면과 동일한 설정 (더 넓은 간격, 더 둥근 모서리)
+      const cellSize = 280;
+      const gap = 16; // 더 넓은 간격 (12px → 16px)
+      const radius = 16; // 더 둥근 모서리 (12px → 16px)
+      const borderWidth = 3; // 테두리도 조금 더 두껍게
+      
+      // 여백 설정 (하단 여백 추가)
+      const topMargin = 80;
+      const sideMargin = 60;
+      const bottomTextMargin = 120; // 텍스트 공간
+      const bottomMargin = 60; // Color Hunt 아래 추가 여백
+      
+      // 콜라주 크기 계산
+      const collageWidth = 3 * cellSize + 2 * gap;
+      const collageHeight = 5 * cellSize + 4 * gap;
+      
+      // 캔버스 크기 설정 (하단 여백 포함)
+      canvas.width = collageWidth + 2 * sideMargin;
+      canvas.height = topMargin + collageHeight + bottomTextMargin + bottomMargin;
+      
+      console.log(`Canvas size: ${canvas.width}x${canvas.height}`);
+      
+      // 배경색
+      const colorInfo = COLORS[currentColor];
+      ctx.fillStyle = colorInfo.hex;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      
+      let loadedImages = 0;
+      const totalImages = photoCount;
+      
+      console.log(`Loading ${totalImages} images...`);
+      
+      // 이미지 로드 및 그리기
+      for (let i = 1; i <= 15; i++) {
+        const slot = document.getElementById(`slot-${i}`);
+        const img = slot.querySelector('img');
+        
+        if (img && img.src) {
+          const newImg = new Image();
+          newImg.onload = () => {
+            try {
+              const row = Math.floor((i-1) / 3);
+              const col = (i-1) % 3;
+              const x = sideMargin + col * (cellSize + gap);
+              const y = topMargin + row * (cellSize + gap);
+              
+              console.log(`Drawing image ${i} at (${x}, ${y})`);
+              
+              // 둥근 모서리와 테두리로 그리기
+              // 1. 외부 테두리 (둥근 모서리)
+              ctx.save();
+              ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+              drawRoundedRect(ctx, x, y, cellSize, cellSize, radius);
+              ctx.fill();
+              ctx.restore();
+              
+              // 2. 내부 이미지 영역 (둥근 모서리 클립핑)
+              const imgX = x + borderWidth;
+              const imgY = y + borderWidth;
+              const imgSize = cellSize - 2 * borderWidth;
+              const imgRadius = Math.max(0, radius - borderWidth);
+              
+              ctx.save();
+              drawRoundedRect(ctx, imgX, imgY, imgSize, imgSize, imgRadius);
+              ctx.clip();
+              ctx.drawImage(newImg, imgX, imgY, imgSize, imgSize);
+              ctx.restore();
+              
+              loadedImages++;
+              console.log(`Loaded images: ${loadedImages}/${totalImages}`);
+              
+              if (loadedImages === totalImages) {
+                console.log('All images loaded, adding texts...');
+                // 텍스트 추가 (하단 여백 고려)
+                addCollageTexts(ctx, canvas.width, canvas.height, topMargin + collageHeight, bottomMargin);
+                console.log('Resolving canvas data...');
+                resolve(canvas.toDataURL('image/jpeg', 0.9));
+              }
+            } catch (error) {
+              console.error('Error drawing image:', error);
+              reject(error);
+            }
+          };
           
-          // 둥근 모서리로 이미지 그리기
-          ctx.save();
-          drawRoundedRect(ctx, x, y, cellSize, cellSize, radius);
-          ctx.clip();
-          ctx.drawImage(newImg, x, y, cellSize, cellSize);
-          ctx.restore();
+          newImg.onerror = (error) => {
+            console.error('Error loading image:', error);
+            reject(new Error('Failed to load image'));
+          };
           
-          loadedImages++;
-          if (loadedImages === photoCount) {
-            resolve(canvas.toDataURL('image/jpeg', 0.9));
-          }
-        };
-        newImg.src = img.src;
+          newImg.src = img.src;
+        }
       }
+      
+      // 이미지가 하나도 없으면 에러
+      if (totalImages === 0) {
+        reject(new Error('No images to process'));
+      }
+      
+    } catch (error) {
+      console.error('Error in generateCollageImage:', error);
+      reject(error);
     }
   });
+}
+
+// 콜라주에 텍스트 추가 (날짜와 타이틀) - 하단 여백 포함
+function addCollageTexts(ctx, canvasWidth, canvasHeight, collageBottom, bottomMargin = 60) {
+  // 텍스트 색상 (흰색)
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+  ctx.textAlign = 'center';
+  
+  // 날짜 텍스트
+  const today = new Date();
+  const dateStr = today.toLocaleDateString('en-GB', { 
+    day: '2-digit', 
+    month: 'short', 
+    year: 'numeric' 
+  });
+  
+  // 날짜 폰트 설정 (텍스트 영역의 중앙 위쪽에 배치)
+  ctx.font = 'normal 30px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+  const textAreaHeight = canvasHeight - collageBottom - bottomMargin; // 실제 텍스트 가능 영역
+  const textCenterY = collageBottom + textAreaHeight / 2; // 텍스트 영역 중심
+  const dateY = textCenterY - 20; // 날짜를 중심에서 위쪽으로
+  ctx.fillText(dateStr, canvasWidth / 2, dateY);
+  
+  // 타이틀 폰트 설정 (날짜 아래에 배치)
+  ctx.font = 'bold 36px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+  const titleY = textCenterY + 25; // 타이틀을 중심에서 아래쪽으로
+  ctx.fillText('Color Hunt', canvasWidth / 2, titleY);
+}
+
+// 헥스 색상을 RGB로 변환
+function hexToRgb(hex) {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return result ? {
+    r: parseInt(result[1], 16),
+    g: parseInt(result[2], 16),
+    b: parseInt(result[3], 16)
+  } : null;
+}
+
+// RGB를 헥스로 변환
+function rgbToHex(r, g, b) {
+  return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
 }
 
 // 완성 화면
@@ -1117,7 +1598,7 @@ function showCompletedScreen(collageData) {
   const app = document.getElementById('app');
   app.innerHTML = `
     <div class="text-center animate-fade-in p-4" style="color: ${textColor}">
-      <h2 class="text-2xl font-bold mb-6">🎉 Color Complete!</h2>
+      <h2 class="text-2xl font-bold mb-6">🎉 ${t('complete.congratulations')}</h2>
       
       <div class="mb-6">
         <img src="${collageData}" alt="Completed color" class="w-full max-w-md mx-auto rounded-lg shadow-lg">
@@ -1126,17 +1607,17 @@ function showCompletedScreen(collageData) {
       <div class="space-y-4">
         <button onclick="downloadCollage('${collageData}')" class="btn btn-${buttonStyle} w-full">
           <i class="fas fa-download mr-2"></i>
-          Save Color
+          ${t('complete.save_color')}
         </button>
         
         <button onclick="showHistoryScreen()" class="btn btn-outline-${buttonStyle} w-full">
           <i class="fas fa-history mr-2"></i>
-          My Colors
+          ${t('complete.my_colors')}
         </button>
         
         <button onclick="startNewCollage()" class="btn btn-outline-${buttonStyle} w-full">
           <i class="fas fa-plus mr-2"></i>
-          Create New Color
+          ${t('complete.create_new_color')}
         </button>
       </div>
     </div>
@@ -1156,7 +1637,7 @@ function downloadCollage(dataUrl) {
     file_name: link.download
   });
   
-  showToast('콜라주가 저장되었습니다! 📸', 'success');
+  showToast(t('complete.saved_successfully'), 'success');
 }
 
 // 새 콜라주 시작
@@ -1169,13 +1650,14 @@ function startNewCollage() {
 
 // 세션 리셋
 async function resetSession() {
-  if (!confirm('정말로 처음부터 다시 시작하시겠습니까? 현재 진행사항이 모두 삭제됩니다.')) {
+  if (!confirm(t('management.confirm_reset'))) {
     return;
   }
   
   currentSession = null;
   currentColor = null;
   photoCount = 0;
+  navigateToMain();
   showColorSelectionScreen();
 }
 
@@ -1252,6 +1734,7 @@ async function showHistoryScreen() {
 // 바로 컬러 헌트 시작 (히스토리에서 호출)
 function startColorHuntDirectly() {
   // 컬러 선택 화면으로 이동
+  navigateToMain();
   showColorSelectionScreen();
 }
 
@@ -1390,6 +1873,72 @@ function loadFallbackTranslations() {
   };
   
   console.log('📚 기본 번역 데이터 로드됨 (fallback)');
+}
+
+// 유틸리티 함수들
+
+// 로딩 표시
+function showLoading(message = 'Loading...') {
+  const existingLoader = document.getElementById('loading-overlay');
+  if (existingLoader) return;
+  
+  const loader = document.createElement('div');
+  loader.id = 'loading-overlay';
+  loader.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50';
+  loader.innerHTML = `
+    <div class="bg-white rounded-lg p-6 text-center shadow-xl">
+      <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
+      <div class="text-gray-700">${message}</div>
+    </div>
+  `;
+  document.body.appendChild(loader);
+}
+
+// 로딩 숨기기
+function hideLoading() {
+  const loader = document.getElementById('loading-overlay');
+  if (loader) {
+    loader.remove();
+  }
+}
+
+// 오류 표시
+function showError(message) {
+  showToast(`❌ ${message}`, 'error');
+}
+
+// 토스트 메시지
+function showToast(message, type = 'info', duration = 3000) {
+  const toast = document.createElement('div');
+  toast.className = `fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 transition-all duration-300 transform translate-x-full`;
+  
+  const bgColor = type === 'error' ? 'bg-red-500' : type === 'success' ? 'bg-green-500' : 'bg-blue-500';
+  toast.className += ` ${bgColor} text-white`;
+  toast.textContent = message;
+  
+  document.body.appendChild(toast);
+  
+  // 애니메이션으로 표시
+  setTimeout(() => {
+    toast.classList.remove('translate-x-full');
+  }, 100);
+  
+  // 자동 제거
+  setTimeout(() => {
+    toast.classList.add('translate-x-full');
+    setTimeout(() => toast.remove(), 300);
+  }, duration);
+}
+
+// GA 트래킹 함수 (옵셔널)
+function trackEvent(eventName, params = {}) {
+  try {
+    if (typeof gtag !== 'undefined') {
+      gtag('event', eventName, params);
+    }
+  } catch (error) {
+    console.log('GA tracking skipped:', eventName);
+  }
 }
 
 // CSV 데이터를 i18n 구조로 파싱 (헤더 없는 key,value_en,value_ko 형태)
@@ -1601,3 +2150,282 @@ document.addEventListener('keydown', (e) => {
 //     e.returnValue = '';
 //   }
 // });
+
+// ============ GOOGLE OAUTH & AUTHENTICATION SYSTEM ============
+
+const GOOGLE_CLIENT_ID = '153490578452-e9745q71jcp1p69pa8vast1dh4aabg6f.apps.googleusercontent.com';
+
+// Google OAuth 초기화
+function initializeGoogleAuth() {
+  return new Promise((resolve, reject) => {
+    // Google Identity Services 라이브러리가 이미 로드되어 있는지 확인
+    if (window.google && window.google.accounts) {
+      console.log('✅ Google OAuth already loaded');
+      google.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        callback: handleCredentialResponse,
+        auto_select: false,
+        cancel_on_tap_outside: true
+      });
+      resolve(true);
+      return;
+    }
+
+    console.log('🔄 Loading Google OAuth library...');
+    const script = document.createElement('script');
+    script.src = 'https://accounts.google.com/gsi/client';
+    script.onload = () => {
+      try {
+        console.log('✅ Google OAuth library loaded successfully');
+        google.accounts.id.initialize({
+          client_id: GOOGLE_CLIENT_ID,
+          callback: handleCredentialResponse,
+          auto_select: false,
+          cancel_on_tap_outside: true
+        });
+        resolve(true);
+      } catch (error) {
+        console.error('❌ Google OAuth initialization failed:', error);
+        reject(error);
+      }
+    };
+    script.onerror = () => {
+      const error = new Error('Failed to load Google OAuth library');
+      console.error('❌ Google OAuth library loading failed:', error);
+      reject(error);
+    };
+    document.head.appendChild(script);
+  });
+}
+
+// Google 로그인 버튼 클릭
+async function signInWithGoogle() {
+  try {
+    showLoading('Loading Google sign-in...');
+    
+    // Google OAuth 라이브러리 초기화 대기
+    await initializeGoogleAuth();
+    
+    hideLoading();
+    
+    // Google One Tap 방식 시도
+    google.accounts.id.prompt((notification) => {
+      console.log('Google One Tap notification:', notification);
+      
+      if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+        console.log('One Tap not available, trying OAuth2 flow...');
+        
+        // One Tap이 표시되지 않으면 OAuth2 팝업 사용
+        try {
+          const tokenClient = google.accounts.oauth2.initTokenClient({
+            client_id: GOOGLE_CLIENT_ID,
+            scope: 'openid profile email',
+            callback: async (response) => {
+              console.log('OAuth2 response:', response);
+              if (response.access_token) {
+                await handleGoogleTokenResponse(response.access_token);
+              } else if (response.error) {
+                console.error('OAuth2 error:', response.error);
+                showError('Google sign-in was cancelled or failed.');
+              }
+            },
+            error_callback: (error) => {
+              console.error('OAuth2 error callback:', error);
+              showError('Google sign-in failed. Please try again.');
+            }
+          });
+          
+          tokenClient.requestAccessToken();
+        } catch (oauth2Error) {
+          console.error('OAuth2 initialization failed:', oauth2Error);
+          showError('Google sign-in is not available. Please try guest mode.');
+        }
+      }
+    });
+  } catch (error) {
+    hideLoading();
+    console.error('Google 로그인 초기화 실패:', error);
+    showError('Google sign-in is not available. Please try guest mode.');
+  }
+}
+
+// Google 인증 응답 처리
+async function handleCredentialResponse(response) {
+  try {
+    showLoading('Signing in with Google...');
+    
+    // JWT 토큰을 백엔드로 전송하여 검증
+    const backendResponse = await fetch('/api/auth/google', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        credential: response.credential
+      })
+    });
+
+    if (backendResponse.ok) {
+      const result = await backendResponse.json();
+      
+      // 로그인 성공
+      localStorage.setItem('colorhunt_auth_token', result.token);
+      currentUser = result.user;
+      
+      hideLoading();
+      showToast('Welcome back, ' + result.user.name + '!', 'success');
+      
+      // 메인 화면으로 이동
+      setTimeout(() => {
+        const routeResult = initRouter();
+        handleRouteResult(routeResult);
+      }, 1000);
+      
+    } else {
+      throw new Error('Authentication failed');
+    }
+  } catch (error) {
+    hideLoading();
+    console.error('Google 로그인 실패:', error);
+    showError('Google sign-in failed. Please try again.');
+  }
+}
+
+// Google 토큰 응답 처리 (OAuth2 방식)
+async function handleGoogleTokenResponse(accessToken) {
+  try {
+    showLoading('Getting your profile...');
+    
+    // Google API로 사용자 정보 가져오기
+    const profileResponse = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`
+      }
+    });
+    
+    if (profileResponse.ok) {
+      const profile = await profileResponse.json();
+      
+      // 백엔드에 사용자 정보 전송
+      const backendResponse = await fetch('/api/auth/google-profile', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          profile: profile,
+          accessToken: accessToken
+        })
+      });
+
+      if (backendResponse.ok) {
+        const result = await backendResponse.json();
+        
+        // 로그인 성공
+        localStorage.setItem('colorhunt_auth_token', result.token);
+        currentUser = result.user;
+        
+        hideLoading();
+        showToast('Welcome, ' + result.user.name + '!', 'success');
+        
+        // 메인 화면으로 이동
+        setTimeout(() => {
+          const routeResult = initRouter();
+          handleRouteResult(routeResult);
+        }, 1000);
+      } else {
+        throw new Error('Profile authentication failed');
+      }
+    } else {
+      throw new Error('Failed to get Google profile');
+    }
+  } catch (error) {
+    hideLoading();
+    console.error('Google 프로필 처리 실패:', error);
+    showError('Failed to get your Google profile. Please try again.');
+  }
+}
+
+// 게스트 모드로 계속하기
+async function continueAsGuest() {
+  try {
+    showLoading('Setting up guest session...');
+    
+    // 게스트 사용자 생성
+    const guestResponse = await fetch('/api/auth/guest', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        deviceId: getUserId() // 기존의 사용자 ID 사용
+      })
+    });
+
+    if (guestResponse.ok) {
+      const result = await guestResponse.json();
+      
+      // 게스트 토큰 저장
+      localStorage.setItem('colorhunt_auth_token', result.token);
+      currentUser = result.user;
+      
+      hideLoading();
+      showToast('Welcome to Color Hunt!', 'success');
+      
+      // 메인 화면으로 이동
+      setTimeout(() => {
+        const routeResult = initRouter();
+        handleRouteResult(routeResult);
+      }, 1000);
+    } else {
+      throw new Error('Guest authentication failed');
+    }
+  } catch (error) {
+    hideLoading();
+    console.error('게스트 로그인 실패:', error);
+    showError('Failed to create guest session. Please try again.');
+  }
+}
+
+// 로그아웃
+async function logout() {
+  try {
+    // 로컬 저장소 정리
+    localStorage.removeItem('colorhunt_auth_token');
+    localStorage.removeItem('colorhunt_user_id');
+    
+    // 세션 정리
+    currentUser = null;
+    currentSession = null;
+    currentColor = null;
+    photoCount = 0;
+    
+    // Google 로그아웃 (Google 사용자인 경우)
+    if (window.google && currentUser?.type === 'google') {
+      google.accounts.id.disableAutoSelect();
+    }
+    
+    showToast('Logged out successfully', 'success');
+    
+    // 로그인 화면으로 이동
+    setTimeout(() => {
+      showAuthScreen();
+    }, 1000);
+  } catch (error) {
+    console.error('로그아웃 실패:', error);
+    showError('Logout failed. Please try again.');
+  }
+}
+
+// 인증 상태 확인 유틸리티
+function isAuthenticated() {
+  return currentUser !== null && localStorage.getItem('colorhunt_auth_token') !== null;
+}
+
+function isGoogleUser() {
+  return currentUser?.type === 'google';
+}
+
+function isGuestUser() {
+  return currentUser?.type === 'guest';
+}
