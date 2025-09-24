@@ -3,21 +3,21 @@ import { jsxRenderer } from 'hono/jsx-renderer'
 // SEO 메타데이터 다국어 설정
 const seoData = {
   en: {
-    title: '🎨 Color Hunt - Daily Color Discovery Game',
+    title: 'Color Hunt - Daily Color Discovery',
     description: 'Find today\'s color in real life and create a beautiful 9-photo collage! Play with friends, capture memories, and discover colors around you. Auto-save your collages to your mobile album.',
     keywords: 'color hunt, photo collage, daily challenge, color discovery, photography game, mobile app, friends game, memory creation, color matching, photo album',
-    ogTitle: '🎨 Color Hunt - Daily Color Discovery Game',
+    ogTitle: 'Color Hunt - Daily Color Discovery',
     ogDescription: 'Discover today\'s color in real life! Create stunning 9-photo collages with auto-save feature. Perfect for friends, couples, and memory-making.',
-    twitterTitle: '🎨 Color Hunt - Daily Color Discovery Game',
+    twitterTitle: 'Color Hunt - Daily Color Discovery',
     twitterDescription: 'Find colors, take photos, create collages! Auto-save your memories in this fun daily color challenge.'
   },
   ko: {
-    title: '🎨 컬러 헌트 - 일일 색깔 발견 게임',
+    title: 'Color Hunt - 매일 새로운 색을 모아보세요',
     description: '오늘의 색깔을 현실에서 찾아 아름다운 9장 사진 콜라주를 만들어보세요! 친구들과 함께 추억을 만들고, 주변 색깔들을 발견해보세요. 콜라주를 모바일 앨범에 자동 저장됩니다.',
     keywords: '컬러헌트, 사진 콜라주, 일일 챌린지, 색깔 발견, 사진 게임, 모바일 앱, 친구 게임, 추억 만들기, 색깔 매칭, 사진 앨범',
-    ogTitle: '🎨 컬러 헌트 - 일일 색깔 발견 게임',
+    ogTitle: 'Color Hunt - 매일 새로운 색을 모아보세요',
     ogDescription: '현실에서 오늘의 색깔을 발견해보세요! 자동 저장 기능으로 멋진 9장 콜라주를 만들어보세요. 친구, 연인과 추억 만들기에 완벽합니다.',
-    twitterTitle: '🎨 컬러 헌트 - 일일 색깔 발견 게임',
+    twitterTitle: 'Color Hunt - 매일 새로운 색을 모아보세요',
     twitterDescription: '색깔을 찾고, 사진을 찍고, 콜라주를 만드세요! 재미있는 일일 색깔 챌린지로 추억을 자동 저장하세요.'
   }
 };
@@ -63,7 +63,7 @@ export const renderer = jsxRenderer(({ children, ...props }) => {
         <meta property="og:image" content="https://colorhunt.app/static/og-image-1200x630.png" />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
-        <meta property="og:image:alt" content="Color Hunt - Daily Color Discovery Game" />
+        <meta property="og:image:alt" content={seo.title} />
         <meta property="og:locale" content={lang === 'ko' ? 'ko_KR' : 'en_US'} />
         
         {/* Twitter Card */}
@@ -73,7 +73,7 @@ export const renderer = jsxRenderer(({ children, ...props }) => {
         <meta name="twitter:title" content={seo.twitterTitle} />
         <meta name="twitter:description" content={seo.twitterDescription} />
         <meta name="twitter:image" content="https://colorhunt.app/static/twitter-card-1200x600.png" />
-        <meta name="twitter:image:alt" content="Color Hunt - Daily Color Discovery Game" />
+        <meta name="twitter:image:alt" content={seo.title} />
         
         {/* 구조화된 데이터 (Schema.org) */}
         <script type="application/ld+json" dangerouslySetInnerHTML={{
