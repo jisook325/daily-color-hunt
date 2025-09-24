@@ -917,23 +917,94 @@ app.get('/api/stats/:userId', async (c) => {
   return c.json({ stats: stats.results || [] });
 });
 
+// 언어 감지 함수
+function detectLanguage(c: any): string {
+  // URL 파라미터로 언어 지정
+  const langParam = c.req.query('lang');
+  if (langParam === 'en' || langParam === 'ko') {
+    return langParam;
+  }
+  
+  // Accept-Language 헤더에서 언어 감지
+  const acceptLanguage = c.req.header('Accept-Language') || '';
+  
+  // 한국어 감지
+  if (acceptLanguage.includes('ko')) {
+    return 'ko';
+  }
+  
+  // 기본값은 영어
+  return 'en';
+}
+
+// SEO 파일들 (정적 제공)
+app.get('/robots.txt', async (c) => {
+  return c.text(`User-agent: *
+Allow: /
+
+# 사이트맵
+Sitemap: https://colorhunt.app/sitemap.xml
+
+# 크롤링 최적화
+Crawl-delay: 1
+
+# 불필요한 디렉토리 제외
+Disallow: /api/
+Disallow: /static/tmp/
+Disallow: /_worker.js
+Disallow: /_routes.json`, 200, {
+    'Content-Type': 'text/plain'
+  })
+})
+
+app.get('/sitemap.xml', async (c) => {
+  return c.text(`<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
+  <url>
+    <loc>https://colorhunt.app/</loc>
+    <lastmod>2025-01-15</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://colorhunt.app/?lang=ko" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://colorhunt.app/?lang=en" />
+  </url>
+  <url>
+    <loc>https://colorhunt.app/?lang=ko</loc>
+    <lastmod>2025-01-15</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://colorhunt.app/?lang=en</loc>
+    <lastmod>2025-01-15</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
+  </url>
+</urlset>`, 200, {
+    'Content-Type': 'application/xml'
+  })
+})
+
 // 메인 페이지
 app.get('/', (c) => {
   const { env } = c;
+  const lang = detectLanguage(c);
+  
   return c.render(
     <div class="min-h-screen flex items-center justify-center p-2">
       <div class="w-full max-w-md mx-auto text-center">
         <div id="app"></div>
       </div>
     </div>,
-    { gaId: env.GA_MEASUREMENT_ID }
+    { gaId: env.GA_MEASUREMENT_ID, lang }
   )
 })
 
 // SPA Catch-All 라우트 (모든 비-API 경로를 SPA로 처리)
 app.get('/*', (c) => {
   const { env } = c;
-  console.log(`🔗 SPA Catch-All: ${c.req.path}`);
+  const lang = detectLanguage(c);
+  console.log(`🔗 SPA Catch-All: ${c.req.path}, Language: ${lang}`);
   
   // 기존 메인 페이지와 동일한 SPA 렌더링
   return c.render(
@@ -942,7 +1013,7 @@ app.get('/*', (c) => {
         <div id="app"></div>
       </div>
     </div>,
-    { gaId: env.GA_MEASUREMENT_ID }
+    { gaId: env.GA_MEASUREMENT_ID, lang }
   )
 })
 

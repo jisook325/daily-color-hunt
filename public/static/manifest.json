@@ -1,15 +1,15 @@
 {
-  "name": "💖 Color Hunt - 컬러 콜라주",
+  "name": "🎨 Color Hunt - Daily Color Discovery Game",
   "short_name": "Color Hunt",
-  "description": "오늘의 컬러를 찾아 9장의 사진으로 콜라주를 만들어보세요!",
+  "description": "Find today's color in real life and create beautiful 9-photo collages! Auto-save your memories.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#E53E3E",
+  "background_color": "#E9EEFA",
+  "theme_color": "#E9EEFA",
   "orientation": "portrait",
   "scope": "/",
-  "lang": "ko",
-  "categories": ["photo", "lifestyle", "entertainment"],
+  "lang": "en",
+  "categories": ["photo", "games", "lifestyle", "entertainment"],
   "icons": [
     {
       "src": "/static/icon-192x192.png",
@@ -41,9 +41,9 @@
   ],
   "shortcuts": [
     {
-      "name": "새 콜라주 시작",
-      "short_name": "새 콜라주",
-      "description": "새로운 컬러로 콜라주 만들기",
+      "name": "Start New Collage",
+      "short_name": "New Game",
+      "description": "Start a new color discovery game",
       "url": "/",
       "icons": [
         {
@@ -53,9 +53,9 @@
       ]
     },
     {
-      "name": "내 콜라주 보기",
-      "short_name": "이력",
-      "description": "완성한 콜라주 보기", 
+      "name": "View My Collages",
+      "short_name": "History",
+      "description": "View completed collages", 
       "url": "/?view=history",
       "icons": [
         {
