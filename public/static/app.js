@@ -459,8 +459,8 @@ async function checkCurrentSession() {
 
 // 컬러 선택 화면 (메인 화면)
 function showColorSelectionScreen() {
-  // 배경색 초기화 (기본 회색)
-  document.body.style.backgroundColor = '#F9FAFB';
+  // 배경색을 연한 파란색으로 변경
+  document.body.style.backgroundColor = '#E9EEFA';
   document.body.style.color = '#374151';
   
   const app = document.getElementById('app');
@@ -1142,7 +1142,7 @@ async function savePhoto(position, imageData, thumbnailData) {
       });
     }
     
-    showToast('📸 사진이 저장되었습니다!', 'success');
+    // 완성 대기 화면에서는 토스트 제거 (조용한 저장)
     
   } catch (error) {
     console.error('사진 저장 오류:', error);
@@ -1587,7 +1587,7 @@ function rgbToHex(r, g, b) {
   return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
 }
 
-// 완성 화면
+// 완성 화면 (개선된 플로우)
 function showCompletedScreen(collageData) {
   // 배경색 유지 (현재 색상)
   const colorInfo = COLORS[currentColor];
@@ -1598,7 +1598,7 @@ function showCompletedScreen(collageData) {
   const app = document.getElementById('app');
   app.innerHTML = `
     <div class="text-center animate-fade-in p-4" style="color: ${textColor}">
-      <h2 class="text-2xl font-bold mb-6">🎉 ${t('complete.congratulations')}</h2>
+      <!-- 'Color Complete!' 텍스트 제거됨 -->
       
       <div class="mb-6">
         <img src="${collageData}" alt="Completed color" class="w-full max-w-md mx-auto rounded-lg shadow-lg">
@@ -1607,7 +1607,7 @@ function showCompletedScreen(collageData) {
       <div class="space-y-4">
         <button onclick="downloadCollage('${collageData}')" class="btn btn-${buttonStyle} w-full">
           <i class="fas fa-download mr-2"></i>
-          ${t('complete.save_color')}
+          Download Again
         </button>
         
         <button onclick="showHistoryScreen()" class="btn btn-outline-${buttonStyle} w-full">
@@ -1622,22 +1622,71 @@ function showCompletedScreen(collageData) {
       </div>
     </div>
   `;
+  
+  // 완성 화면 진입 후 자동 저장 + 토스트 (약간의 딜레이)
+  setTimeout(() => {
+    autoSaveCollage(collageData);
+  }, 500);
 }
 
-// 콜라주 다운로드
+// 자동 콜라주 저장 (개선된 버전)
+function autoSaveCollage(dataUrl) {
+  try {
+    // 모바일 환경에서 자동 다운로드 실행
+    const link = document.createElement('a');
+    const filename = `color-hunt-${currentColor}-${new Date().toISOString().split('T')[0]}.jpg`;
+    link.download = filename;
+    link.href = dataUrl;
+    
+    // 링크를 DOM에 추가하고 클릭 후 제거 (모바일 호환성)
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    // GA 이벤트 추적
+    trackEvent('collage_auto_saved', {
+      color_name: currentColor || 'unknown',
+      file_name: filename
+    });
+    
+    // 저장 완료 토스트 표시
+    showToast('📸 Collage saved to your album!', 'success', 4000);
+    
+    return true;
+  } catch (error) {
+    console.error('Auto save failed:', error);
+    showToast('❌ Failed to save image automatically', 'error');
+    return false;
+  }
+}
+
+// 재다운로드 함수 (완성 화면에서 사용)
 function downloadCollage(dataUrl) {
-  const link = document.createElement('a');
-  link.download = `color-hunt-${currentColor}-${new Date().toISOString().split('T')[0]}.jpg`;
-  link.href = dataUrl;
-  link.click();
-  
-  // GA 이벤트 추적
-  trackEvent('collage_downloaded', {
-    color_name: currentColor || 'unknown',
-    file_name: link.download
-  });
-  
-  showToast(t('complete.saved_successfully'), 'success');
+  try {
+    // 재다운로드 실행
+    const link = document.createElement('a');
+    const filename = `color-hunt-${currentColor}-${new Date().toISOString().split('T')[0]}.jpg`;
+    link.download = filename;
+    link.href = dataUrl;
+    
+    // 링크를 DOM에 추가하고 클릭 후 제거 (모바일 호환성)
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    // GA 이벤트 추적
+    trackEvent('collage_re_downloaded', {
+      color_name: currentColor || 'unknown',
+      file_name: filename
+    });
+    
+    // 재다운로드 완료 토스트 표시
+    showToast('📥 Downloaded to your album!', 'success', 3000);
+    
+  } catch (error) {
+    console.error('Re-download failed:', error);
+    showToast('❌ Failed to download image', 'error');
+  }
 }
 
 // 새 콜라주 시작

@@ -518,12 +518,7 @@ app.post('/api/color/new', async (c) => {
 
   return c.json({ 
     color: selectedColor,
-    date: getTodayString(),
-    user: {
-      id: userPayload.sub,
-      name: userPayload.name,
-      type: userPayload.type
-    }
+    date: getTodayString()
   });
 });
 
