@@ -68,7 +68,8 @@ const COLORS = {
   black: { hex: '#2D2D2D', english: 'Black', korean: '검정' },
   pink: { hex: '#ffbde4', english: 'Pink', korean: '분홍' },
   tan: { hex: '#D2B48C', english: 'Tan', korean: '황갈색' },
-  beige: { hex: '#A67B5B', english: 'French Beige', korean: '베이지' }
+  beige: { hex: '#A67B5B', english: 'French Beige', korean: '베이지' },
+  matcha: { hex: '#82A860', english: 'Matcha', korean: '말차' }
 };
 
 // 앱 초기화 - 기존 간단한 시스템으로 원복
@@ -404,36 +405,84 @@ window.addEventListener('popstate', (event) => {
 // 현재 세션 확인 (캐싱 최적화)
 async function checkCurrentSession() {
   try {
-    // 로컬 캐시 먼저 확인 (성능 최적화)
+    console.log('🔍 세션 복구 시작 - 3단계 fallback 시스템');
+    
+    // 1단계: localStorage에서 세션 복구 시도
     const cachedSession = localStorage.getItem('colorhunt_current_session');
+    let session = null;
+    
     if (cachedSession) {
       try {
-        const session = JSON.parse(cachedSession);
-        // 24시간 이내 세션은 캐시 사용
+        session = JSON.parse(cachedSession);
         const sessionAge = Date.now() - new Date(session.created_at).getTime();
         if (sessionAge < 24 * 60 * 60 * 1000 && session.status === 'in_progress') {
+          console.log('✅ 1단계: localStorage에서 세션 복구 성공');
           currentSession = session;
           currentColor = session.color;
           updateThemeColor(currentColor);
           photoCount = session.photos?.length || 0;
           gameMode = session.mode || 'nine';
           showCollageScreen();
-          return; // 캐시된 데이터 사용, 서버 호출 생략
+          return;
         }
       } catch (e) {
-        // 캐시 파싱 실패시 계속 진행
-        localStorage.removeItem('colorhunt_current_session');
+        console.warn('⚠️ localStorage 세션 파싱 실패:', e.message);
+        // 위험한 localStorage.removeItem() 제거 - 데이터 보존
       }
     }
     
+    // 2단계: IndexedDB에서 세션 복구 시도 (Safari 보호)
+    if (typeof ColorHuntSessionDB !== 'undefined') {
+      try {
+        const sessionDB = new ColorHuntSessionDB();
+        const indexedSession = await sessionDB.getSession(currentUser);
+        if (indexedSession && indexedSession.status === 'in_progress') {
+          const sessionAge = Date.now() - new Date(indexedSession.created_at).getTime();
+          if (sessionAge < 24 * 60 * 60 * 1000) {
+            console.log('✅ 2단계: IndexedDB에서 세션 복구 성공 (Safari 보호)');
+            // localStorage에도 백업
+            localStorage.setItem('colorhunt_current_session', JSON.stringify(indexedSession));
+            currentSession = indexedSession;
+            currentColor = indexedSession.color;
+            updateThemeColor(currentColor);
+            photoCount = indexedSession.photos?.length || 0;
+            gameMode = indexedSession.mode || 'nine';
+            showCollageScreen();
+            return;
+          }
+        }
+      } catch (e) {
+        console.warn('⚠️ IndexedDB 세션 복구 실패:', e.message);
+      }
+    }
+    
+    // 3단계: 서버에서 세션 복구 시도 (최후 수단)
+    console.log('🌐 3단계: 서버에서 세션 복구 시도');
     showLoading(t('alert.loading_session'));
     
     const response = await axios.get(`/api/session/current/${currentUser}`);
-    const { session } = response.data;
+    const serverResponse = response.data;
+    session = serverResponse.session;
     
-    // 세션을 로컬 캐시에 저장 (성능 최적화)
+    // 서버에서 받은 세션을 모든 저장소에 백업 (Safari 보호)
     if (session && session.status === 'in_progress') {
+      console.log('✅ 3단계: 서버에서 세션 복구 성공');
+      
+      // localStorage에 저장
       localStorage.setItem('colorhunt_current_session', JSON.stringify(session));
+      
+      // IndexedDB에도 백업 (Safari ITP 보호)
+      if (typeof ColorHuntSessionDB !== 'undefined') {
+        try {
+          const sessionDB = new ColorHuntSessionDB();
+          await sessionDB.saveSession(currentUser, session);
+          console.log('💾 IndexedDB에 세션 백업 완료');
+        } catch (e) {
+          console.warn('⚠️ IndexedDB 백업 실패:', e.message);
+        }
+      }
+    } else {
+      console.log('ℹ️ 진행 중인 세션 없음 - 새 세션 시작');
     }
     
     hideLoading();
@@ -475,7 +524,7 @@ function showColorSelectionScreen() {
       
       <!-- 콘텐츠 레이어 - 박스 제거하고 직접 배치 -->
       <div class="main-content relative text-center animate-fade-in max-w-md w-full">
-        <h1 class="text-4xl font-bold mb-8 drop-shadow-lg" style="color: #0A18B1; -webkit-text-stroke: 1px #ffffff; text-stroke: 1px #ffffff;">${t('main.whats_today_color')}</h1>
+        <h1 class="text-4xl font-bold mb-8 drop-shadow-lg" style="color: #0A18B1;">${t('main.whats_today_color')}</h1>
         
         <div class="text-lg leading-relaxed whitespace-pre-line mb-8 drop-shadow-md" style="color: #3445FF;">
           ${t('main.discover_color')}
@@ -1113,8 +1162,35 @@ async function savePhoto(position, imageData, thumbnailData) {
       photoCount++;
     }
     
-    // 업데이트된 세션을 캐시에 저장 (성능 최적화)
+    // 업데이트된 세션을 모든 저장소에 백업 (Safari 보호)
     localStorage.setItem('colorhunt_current_session', JSON.stringify(currentSession));
+    
+    // IndexedDB에 자동 백업 (Safari ITP 보호)
+    if (typeof ColorHuntSessionDB !== 'undefined') {
+      try {
+        const sessionDB = new ColorHuntSessionDB();
+        
+        // 세션 전체 백업
+        await sessionDB.saveSession(currentUser, currentSession);
+        
+        // 개별 사진도 추가 백업
+        const photoData = {
+          id: response.data.photoId,
+          sessionId: sessionId,
+          position: position,
+          thumbnail_data: thumbnailData,
+          image_data: imageData,
+          created_at: new Date().toISOString(),
+          color: currentColor
+        };
+        await sessionDB.savePhoto(photoData);
+        
+        console.log(`💾 IndexedDB 자동 백업 완료 - 사진 ${position}, 총 ${photoCount}장`);
+      } catch (e) {
+        console.warn('⚠️ IndexedDB 백업 실패 (Safari 보호 기능 제한):', e.message);
+        // 백업 실패해도 메인 기능은 계속 작동
+      }
+    }
     
     hideLoading();
     

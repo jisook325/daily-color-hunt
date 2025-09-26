@@ -16,7 +16,8 @@ const COLORS = [
   { name: 'black', hex: '#2D2D2D', english: 'Black', korean: '검정' },
   { name: 'pink', hex: '#ffbde4', english: 'Pink', korean: '분홍' },
   { name: 'tan', hex: '#D2B48C', english: 'Tan', korean: '황갈색' },
-  { name: 'beige', hex: '#A67B5B', english: 'French Beige', korean: '베이지' }
+  { name: 'beige', hex: '#A67B5B', english: 'French Beige', korean: '베이지' },
+  { name: 'matcha', hex: '#82A860', english: 'Matcha', korean: '말차' }
 ];
 
 type Bindings = {

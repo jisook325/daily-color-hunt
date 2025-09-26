@@ -13,10 +13,10 @@ const seoData = {
   },
   ko: {
     title: 'Color Hunt - 매일 새로운 색을 모아보세요',
-    description: '오늘의 색깔을 현실에서 찾아 아름다운 9장 사진 콜라주를 만들어보세요! 친구들과 함께 추억을 만들고, 주변 색깔들을 발견해보세요. 콜라주를 모바일 앨범에 자동 저장됩니다.',
-    keywords: '컬러헌트, 사진 콜라주, 일일 챌린지, 색깔 발견, 사진 게임, 모바일 앱, 친구 게임, 추억 만들기, 색깔 매칭, 사진 앨범',
+    description: '오늘의 색깔을 찾아 귀여운 사진을 완성해보세요!  친구들과 함께 추억을 만들고, 주변 색깔들을 발견해보세요.',
+    keywords: 'colorhunt, date, 컬러헌트, 일일 챌린지, 색깔 찾기, 사진 게임, 모바일 앱, 친구 게임, 추억 만들기, 여행, 사진 앨범',
     ogTitle: 'Color Hunt - 매일 새로운 색을 모아보세요',
-    ogDescription: '현실에서 오늘의 색깔을 발견해보세요! 자동 저장 기능으로 멋진 9장 콜라주를 만들어보세요. 친구, 연인과 추억 만들기에 완벽합니다.',
+    ogDescription: '현실에서 오늘의 색깔을 발견해보세요!  친구, 연인과 추억 만들기에 완벽합니다.',
     twitterTitle: 'Color Hunt - 매일 새로운 색을 모아보세요',
     twitterDescription: '색깔을 찾고, 사진을 찍고, 콜라주를 만드세요! 재미있는 일일 색깔 챌린지로 추억을 자동 저장하세요.'
   }
@@ -108,6 +108,11 @@ export const renderer = jsxRenderer(({ children, ...props }) => {
         <link rel="apple-touch-icon" sizes="512x512" href="/static/icon-512x512.png" />
         <link rel="shortcut icon" href="/static/favicon.ico" />
         
+        {/* Google Fonts - Alan Sans */}
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link href="https://fonts.googleapis.com/css2?family=Alan+Sans:wght@200;300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+        
         {/* CSS 라이브러리 */}
         <script src="https://cdn.tailwindcss.com"></script>
         <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet" />
@@ -140,12 +145,16 @@ export const renderer = jsxRenderer(({ children, ...props }) => {
           </>
         )}
         
-        {/* Tailwind 커스텀 설정 */}
+        {/* Tailwind 커스텀 설정 - Alan Sans 폰트 적용 */}
         <script dangerouslySetInnerHTML={{
           __html: `
             tailwind.config = {
               theme: {
                 extend: {
+                  fontFamily: {
+                    'sans': ['Alan Sans', 'ui-sans-serif', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', 'Noto Sans', 'sans-serif'],
+                    'alan': ['Alan Sans', 'sans-serif']
+                  },
                   colors: {
                     'color-red': '#FF3333',
                     'color-orange': '#FFCC99', 
@@ -158,7 +167,8 @@ export const renderer = jsxRenderer(({ children, ...props }) => {
                     'color-black': '#2D2D2D',
                     'color-pink': '#ffbde4',
                     'color-tan': '#D2B48C',
-                    'color-beige': '#A67B5B'
+                    'color-beige': '#A67B5B',
+                    'color-matcha': '#82A860'
                   }
                 }
               }
@@ -166,12 +176,15 @@ export const renderer = jsxRenderer(({ children, ...props }) => {
           `
         }}></script>
       </head>
-      <body class="bg-gray-50 min-h-screen p-2 text-center" style="transition: background-color 0.5s ease;">
+      <body class="font-alan bg-gray-50 min-h-screen p-2 text-center" style="font-family: 'Alan Sans', sans-serif; transition: background-color 0.5s ease;">
         {children}
         
         {/* JavaScript 라이브러리 */}
         <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
         <script src="https://cdn.jsdelivr.net/npm/dayjs@1.11.10/dayjs.min.js"></script>
+        
+        {/* Safari 세션 보호를 위한 IndexedDB 유틸리티 */}
+        <script src="/static/sessionDB.js"></script>
         
         {/* 메인 앱 스크립트 */}
         <script src="/static/app.js"></script>
