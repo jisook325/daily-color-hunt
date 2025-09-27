@@ -168,6 +168,41 @@ class ColorHuntSessionDB {
     }
   }
 
+  // 사용자의 모든 사진 가져오기 (세션 복구용)
+  async getAllPhotos(userId) {
+    try {
+      if (!this.db) await this.init();
+      
+      const transaction = this.db.transaction(['photos'], 'readonly');
+      const store = transaction.objectStore('photos');
+      const index = store.index('userId');
+      
+      const request = index.getAll(userId);
+      
+      return new Promise((resolve) => {
+        request.onsuccess = () => {
+          const photos = request.result || [];
+          // 최신 사진들만 반환 (24시간 이내)
+          const recent = photos.filter(photo => {
+            const photoAge = Date.now() - photo.timestamp;
+            return photoAge < 24 * 60 * 60 * 1000; // 24시간
+          });
+          console.log(`📷 모든 사진 복구: ${recent.length}장 (총 ${photos.length}장 중)`);
+          resolve(recent);
+        };
+        
+        request.onerror = () => {
+          console.error('❌ 모든 사진 복구 실패:', request.error);
+          resolve([]);
+        };
+      });
+      
+    } catch (error) {
+      console.error('❌ 모든 사진 복구 중 오류:', error);
+      return [];
+    }
+  }
+
   // 완성된 세션 정리
   async clearCompletedSession(userId) {
     try {

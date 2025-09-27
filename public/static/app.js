@@ -414,8 +414,19 @@ async function checkCurrentSession() {
     if (cachedSession) {
       try {
         session = JSON.parse(cachedSession);
-        const sessionAge = Date.now() - new Date(session.created_at).getTime();
-        if (sessionAge < 24 * 60 * 60 * 1000 && session.status === 'in_progress') {
+        
+        // 세션이 유효한지 체크 (날짜 체크 완화)
+        const isValidSession = session && session.status === 'in_progress';
+        const hasPhotos = session.photos && session.photos.length > 0;
+        
+        // 세션 날짜가 있으면 24시간 체크, 없으면 사진 여부로 판단
+        let isWithinTimeLimit = true;
+        if (session.created_at) {
+          const sessionAge = Date.now() - new Date(session.created_at).getTime();
+          isWithinTimeLimit = sessionAge < 24 * 60 * 60 * 1000;
+        }
+        
+        if (isValidSession && (isWithinTimeLimit || hasPhotos)) {
           console.log('✅ 1단계: localStorage에서 세션 복구 성공');
           currentSession = session;
           currentColor = session.color;
@@ -437,8 +448,23 @@ async function checkCurrentSession() {
         const sessionDB = new ColorHuntSessionDB();
         const indexedSession = await sessionDB.getSession(currentUser);
         if (indexedSession && indexedSession.status === 'in_progress') {
-          const sessionAge = Date.now() - new Date(indexedSession.created_at).getTime();
-          if (sessionAge < 24 * 60 * 60 * 1000) {
+          
+          // IndexedDB에서 개별 사진들도 복구 시도
+          const savedPhotos = await sessionDB.getAllPhotos(currentUser);
+          if (savedPhotos && savedPhotos.length > 0) {
+            indexedSession.photos = savedPhotos;
+            console.log(`🖼️ IndexedDB에서 ${savedPhotos.length}장의 사진 복구`);
+          }
+          
+          // 세션 날짜 체크 완화
+          const hasPhotos = indexedSession.photos && indexedSession.photos.length > 0;
+          let isWithinTimeLimit = true;
+          if (indexedSession.created_at) {
+            const sessionAge = Date.now() - new Date(indexedSession.created_at).getTime();
+            isWithinTimeLimit = sessionAge < 24 * 60 * 60 * 1000;
+          }
+          
+          if (isWithinTimeLimit || hasPhotos) {
             console.log('✅ 2단계: IndexedDB에서 세션 복구 성공 (Safari 보호)');
             // localStorage에도 백업
             localStorage.setItem('colorhunt_current_session', JSON.stringify(indexedSession));
@@ -449,8 +475,51 @@ async function checkCurrentSession() {
             gameMode = indexedSession.mode || 'nine';
             showCollageScreen();
             return;
+          } else {
+            console.log('⚠️ IndexedDB 세션이 너무 오래됨 또는 사진 없음');
           }
+        } else {
+          console.log('ℹ️ IndexedDB에 유효한 세션 없음');
         }
+        
+        // 세션이 없어도 개별 사진들로부터 세션 재구성 시도 (강력한 복구)
+        console.log('🔄 개별 사진으로부터 세션 재구성 시도...');
+        try {
+          const sessionDB = new ColorHuntSessionDB();
+          const savedPhotos = await sessionDB.getAllPhotos(currentUser);
+          if (savedPhotos && savedPhotos.length > 0) {
+            console.log(`🔄 개별 사진들로부터 세션 재구성: ${savedPhotos.length}장`);
+            
+            // 가장 최근 사진의 색상과 세션 정보 사용
+            const recentPhoto = savedPhotos.sort((a, b) => b.timestamp - a.timestamp)[0];
+            
+            const reconstructedSession = {
+              sessionId: recentPhoto.sessionId || ('recovered_' + Date.now()),
+              user_id: currentUser,
+              color: recentPhoto.color,
+              status: 'in_progress',
+              mode: 'nine',
+              photos: savedPhotos,
+              created_at: recentPhoto.created_at,
+              reconstructed: true // 재구성된 세션임을 표시
+            };
+            
+            console.log('✅ 2단계-보완: 개별 사진으로부터 세션 재구성 성공');
+            localStorage.setItem('colorhunt_current_session', JSON.stringify(reconstructedSession));
+            currentSession = reconstructedSession;
+            currentColor = reconstructedSession.color;
+            updateThemeColor(currentColor);
+            photoCount = reconstructedSession.photos.length;
+            gameMode = reconstructedSession.mode;
+            showCollageScreen();
+            return;
+          } else {
+            console.log('ℹ️ 개별 사진도 없음 - 서버에서 확인 필요');
+          }
+        } catch (e) {
+          console.warn('⚠️ 개별 사진으로부터 세션 재구성 실패:', e.message);
+        }
+        
       } catch (e) {
         console.warn('⚠️ IndexedDB 세션 복구 실패:', e.message);
       }
@@ -1173,19 +1242,21 @@ async function savePhoto(position, imageData, thumbnailData) {
         // 세션 전체 백업
         await sessionDB.saveSession(currentUser, currentSession);
         
-        // 개별 사진도 추가 백업
+        // 개별 사진도 추가 백업 (사용자 ID 포함)
         const photoData = {
           id: response.data.photoId,
+          userId: currentUser, // 사용자 ID 추가 
           sessionId: sessionId,
           position: position,
           thumbnail_data: thumbnailData,
           image_data: imageData,
           created_at: new Date().toISOString(),
-          color: currentColor
+          color: currentColor,
+          timestamp: Date.now() // 검색 최적화용
         };
         await sessionDB.savePhoto(photoData);
         
-        console.log(`💾 IndexedDB 자동 백업 완료 - 사진 ${position}, 총 ${photoCount}장`);
+        console.log(`💾 [보호시스템] IndexedDB 자동 백업 완료 - 사진 ${position}, 총 ${photoCount}장 (사용자: ${currentUser})`);
       } catch (e) {
         console.warn('⚠️ IndexedDB 백업 실패 (Safari 보호 기능 제한):', e.message);
         // 백업 실패해도 메인 기능은 계속 작동
