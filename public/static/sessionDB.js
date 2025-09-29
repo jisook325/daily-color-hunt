@@ -39,8 +39,16 @@ class ColorHuntSessionDB {
           if (!db.objectStoreNames.contains('photos')) {
             const photoStore = db.createObjectStore('photos', { keyPath: 'id' });
             photoStore.createIndex('sessionId', 'sessionId', { unique: false });
+            photoStore.createIndex('userId', 'userId', { unique: false });
             photoStore.createIndex('timestamp', 'timestamp', { unique: false });
             console.log('📷 Photos 스토어 생성 완료');
+          }
+          
+          // users 테이블 생성 (사용자 ID 보호용)
+          if (!db.objectStoreNames.contains('users')) {
+            const userStore = db.createObjectStore('users', { keyPath: 'id' });
+            userStore.createIndex('lastUpdated', 'lastUpdated', { unique: false });
+            console.log('👤 Users 스토어 생성 완료');
           }
         };
       });
@@ -165,6 +173,63 @@ class ColorHuntSessionDB {
     } catch (error) {
       console.error('❌ 사진 데이터 복구 중 오류:', error);
       return [];
+    }
+  }
+
+  // 사용자 ID 저장 (Safari 보호)
+  async saveUserId(userId) {
+    try {
+      if (!this.db) await this.init();
+      
+      const transaction = this.db.transaction(['users'], 'readwrite');
+      const store = transaction.objectStore('users');
+      
+      const userData = {
+        id: 'current_user',
+        userId: userId,
+        timestamp: Date.now(),
+        lastUpdated: Date.now()
+      };
+      
+      await store.put(userData);
+      console.log('💾 사용자 ID IndexedDB 저장 완료:', userId);
+      return true;
+      
+    } catch (error) {
+      console.error('❌ 사용자 ID 저장 실패:', error);
+      return false;
+    }
+  }
+
+  // 사용자 ID 복구 (Safari 보호)
+  async getUserId() {
+    try {
+      if (!this.db) await this.init();
+      
+      const transaction = this.db.transaction(['users'], 'readonly');
+      const store = transaction.objectStore('users');
+      const request = store.get('current_user');
+      
+      return new Promise((resolve) => {
+        request.onsuccess = () => {
+          const userData = request.result;
+          if (userData && userData.userId) {
+            console.log('🔄 IndexedDB에서 사용자 ID 복구:', userData.userId);
+            resolve(userData.userId);
+          } else {
+            resolve(null);
+          }
+        };
+        
+        request.onerror = () => {
+          console.error('❌ 사용자 ID 복구 실패:', request.error);
+          resolve(null);
+        };
+      });
+      
+    } catch (error) {
+      console.error('❌ 사용자 ID 복구 중 오류:', error);
+      return null;
     }
   }
 

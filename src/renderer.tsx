@@ -120,6 +120,9 @@ export const renderer = jsxRenderer(({ children, ...props }) => {
         {/* 커스텀 CSS */}
         <link href="/static/styles.css" rel="stylesheet" />
         
+        {/* Google AdSense */}
+        <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6764058376790952" crossorigin="anonymous"></script>
+        
         {/* Google Analytics */}
         {gaId && gaId !== 'GA_MEASUREMENT_ID' && (
           <>

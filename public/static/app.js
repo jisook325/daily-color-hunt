@@ -76,8 +76,8 @@ const COLORS = {
 document.addEventListener('DOMContentLoaded', async function() {
   console.log('🎨 Color Hunt 앱 시작!');
   
-  // 사용자 ID 설정 (기존 방식)
-  currentUser = getUserId();
+  // 사용자 ID 설정 (Safari 보호 강화)
+  currentUser = await getUserId();
   
   // 다국어 데이터 로드
   showLoading('Loading...');
@@ -93,13 +93,48 @@ document.addEventListener('DOMContentLoaded', async function() {
 
 // 인증 화면 제거됨 - 기존 간단한 시스템으로 원복
 
-// 사용자 ID 관리
-function getUserId() {
+// 사용자 ID 관리 (Safari 보호 강화)
+async function getUserId() {
+  // 1단계: localStorage에서 확인
   let userId = localStorage.getItem('colorhunt_user_id');
-  if (!userId) {
-    userId = 'user_' + Math.random().toString(36).substring(2) + Date.now().toString(36);
-    localStorage.setItem('colorhunt_user_id', userId);
+  
+  if (userId) {
+    console.log('✅ localStorage에서 사용자 ID 복구:', userId);
+    return userId;
   }
+  
+  // 2단계: IndexedDB에서 사용자 ID 복구 시도 (Safari 보호)
+  if (typeof ColorHuntSessionDB !== 'undefined') {
+    try {
+      const sessionDB = new ColorHuntSessionDB();
+      const savedUserId = await sessionDB.getUserId();
+      if (savedUserId) {
+        console.log('✅ IndexedDB에서 사용자 ID 복구:', savedUserId);
+        localStorage.setItem('colorhunt_user_id', savedUserId);
+        return savedUserId;
+      }
+    } catch (e) {
+      console.warn('⚠️ IndexedDB 사용자 ID 복구 실패:', e.message);
+    }
+  }
+  
+  // 3단계: 새로운 사용자 ID 생성 및 양쪽에 저장
+  userId = 'user_' + Math.random().toString(36).substring(2) + Date.now().toString(36);
+  console.log('🆕 새로운 사용자 ID 생성:', userId);
+  
+  localStorage.setItem('colorhunt_user_id', userId);
+  
+  // IndexedDB에도 백업 (Safari 보호)
+  if (typeof ColorHuntSessionDB !== 'undefined') {
+    try {
+      const sessionDB = new ColorHuntSessionDB();
+      await sessionDB.saveUserId(userId);
+      console.log('💾 사용자 ID IndexedDB 백업 완료');
+    } catch (e) {
+      console.warn('⚠️ 사용자 ID IndexedDB 백업 실패:', e.message);
+    }
+  }
+  
   return userId;
 }
 
@@ -599,11 +634,24 @@ function showColorSelectionScreen() {
           ${t('main.discover_color')}
         </div>
         
-        <button onclick="getNewColor()" class="btn btn-primary mb-4 w-full py-4 text-lg shadow-lg hover:shadow-xl transition-all duration-200 font-semibold backdrop-blur-sm border border-white/50" style="background-color: #3445FF; color: #ffffff; border-color: #3445FF;">
+        <button onclick="getNewColor()" class="btn btn-primary mb-6 w-full py-4 text-lg shadow-lg hover:shadow-xl transition-all duration-200 font-semibold backdrop-blur-sm border border-white/50" style="background-color: #3445FF; color: #ffffff; border-color: #3445FF;">
           ${t('main.start')}
         </button>
+        
+        <!-- 메인 화면 광고 슬롯 -->
+        <div class="main-ad-container mt-6 flex justify-center">
+          <ins class="adsbygoogle"
+               style="display:block"
+               data-ad-client="ca-pub-6764058376790952"
+               data-ad-slot="1234567890"
+               data-ad-format="auto"
+               data-full-width-responsive="true"></ins>
+        </div>
       </div>
     </div>
+    <script>
+      (adsbygoogle = window.adsbygoogle || []).push({});
+    </script>
   `;
 }
 
@@ -816,6 +864,16 @@ function showNineCollageScreen() {
 
         </div>
       </div>
+      
+      <!-- 촬영 중 하단 배너 광고 (비침해적) -->
+      <div class="bottom-ad-banner fixed bottom-0 left-0 right-0 bg-black/20 backdrop-blur-sm p-2 z-10">
+        <ins class="adsbygoogle"
+             style="display:block; max-height:60px;"
+             data-ad-client="ca-pub-6764058376790952"
+             data-ad-slot="9876543210"
+             data-ad-format="auto"
+             data-full-width-responsive="true"></ins>
+      </div>
     </div>
   `;
   
@@ -823,6 +881,15 @@ function showNineCollageScreen() {
   if (currentSession && currentSession.photos) {
     loadExistingPhotos();
   }
+  
+  // 광고 로드 (지연 로드로 성능 최적화)
+  setTimeout(() => {
+    try {
+      (adsbygoogle = window.adsbygoogle || []).push({});
+    } catch (e) {
+      console.warn('AdSense 로드 실패:', e);
+    }
+  }, 1000);
 }
 
 // 무제한 모드 콜라주 화면 (15개 슬롯, 3x5 그리드)
@@ -1751,6 +1818,16 @@ function showCompletedScreen(collageData) {
         <img src="${collageData}" alt="Completed color" class="w-full max-w-md mx-auto rounded-lg shadow-lg">
       </div>
       
+      <!-- 완료 화면 전면 광고 -->
+      <div class="completion-ad-container mb-6 bg-white/10 backdrop-blur-sm rounded-lg p-4">
+        <ins class="adsbygoogle"
+             style="display:block"
+             data-ad-client="ca-pub-6764058376790952"
+             data-ad-slot="1111111111"
+             data-ad-format="auto"
+             data-full-width-responsive="true"></ins>
+      </div>
+      
       <div class="space-y-4">
         <button onclick="downloadCollage('${collageData}')" class="btn btn-${buttonStyle} w-full">
           <i class="fas fa-download mr-2"></i>
@@ -1769,6 +1846,15 @@ function showCompletedScreen(collageData) {
       </div>
     </div>
   `;
+  
+  // 완료 화면 광고 로드 (약간의 지연으로 성능 최적화)
+  setTimeout(() => {
+    try {
+      (adsbygoogle = window.adsbygoogle || []).push({});
+    } catch (e) {
+      console.warn('완료 화면 AdSense 로드 실패:', e);
+    }
+  }, 1500);
   
   // 완성 화면 진입 후 자동 저장 + 토스트 (약간의 딜레이)
   setTimeout(() => {
