@@ -7,6 +7,49 @@ let currentColor = null;
 let photoCount = 0;
 let mediaStream = null;
 let gameMode = 'nine'; // 'nine' 또는 'unlimited'
+let currentTheme = 'main'; // 'main' 또는 'idol-fanclub'
+
+// 테마 감지 함수
+function detectTheme() {
+  const hostname = window.location.hostname;
+  
+  // 서브도메인 감지: mystar.colorhunt.app 등
+  if (hostname.startsWith('mystar.') || hostname.includes('idol') || hostname.includes('fanclub')) {
+    return 'idol-fanclub';
+  }
+  
+  // URL 파라미터로 테마 지정 가능 (?theme=idol-fanclub)
+  const urlParams = new URLSearchParams(window.location.search);
+  const themeParam = urlParams.get('theme');
+  if (themeParam === 'idol-fanclub') {
+    return 'idol-fanclub';
+  }
+  
+  return 'main'; // 기본 테마
+}
+
+// 테마별 설정
+function getThemeConfig(theme) {
+  if (theme === 'idol-fanclub') {
+    return {
+      maxPhotos: 15,
+      gridLayout: { rows: 5, cols: 3 },
+      gameMode: 'fifteen',
+      collageFormat: 'instagram-story',
+      showThumbnails: false, // 촬영 중 썸네일 숨김
+      allowUndo: true // 직전 사진 지우기 허용
+    };
+  } else {
+    return {
+      maxPhotos: 9,
+      gridLayout: { rows: 3, cols: 3 },
+      gameMode: 'nine',
+      collageFormat: 'square',
+      showThumbnails: true, // 기존 동작 유지
+      allowUndo: false
+    };
+  }
+}
 
 // 상태바 색상 업데이트 함수 (강화된 버전)
 function updateThemeColor(colorKey) {
@@ -72,9 +115,16 @@ const COLORS = {
   matcha: { hex: '#82A860', english: 'Matcha', korean: '말차' }
 };
 
-// 앱 초기화 - 기존 간단한 시스템으로 원복
+// 앱 초기화 - 테마 지원 추가
 document.addEventListener('DOMContentLoaded', async function() {
   console.log('🎨 Color Hunt 앱 시작!');
+  
+  // 테마 감지 및 설정
+  currentTheme = detectTheme();
+  const themeConfig = getThemeConfig(currentTheme);
+  gameMode = themeConfig.gameMode;
+  
+  console.log(`🎭 감지된 테마: ${currentTheme}`, themeConfig);
   
   // 사용자 ID 설정 (Safari 보호 강화)
   currentUser = await getUserId();
@@ -564,7 +614,7 @@ async function checkCurrentSession() {
     console.log('🌐 3단계: 서버에서 세션 복구 시도');
     showLoading(t('alert.loading_session'));
     
-    const response = await axios.get(`/api/session/current/${currentUser}`);
+    const response = await axios.get(`/api/session/current/${currentUser}?theme=${currentTheme}`);
     const serverResponse = response.data;
     session = serverResponse.session;
     
@@ -747,7 +797,8 @@ async function confirmColor() {
     const response = await axios.post('/api/session/start', {
       userId: currentUser,
       color: currentColor,
-      mode: gameMode
+      mode: gameMode,
+      theme: currentTheme
     });
     
     currentSession = response.data;
@@ -774,14 +825,18 @@ async function confirmColor() {
   }
 }
 
-// 콜라주 촬영 화면
+// 콜라주 촬영 화면 (테마 지원)
 function showCollageScreen() {
   // 콜라주 화면 진입 시 상태바 색상 확실히 업데이트
   if (currentColor) {
     updateThemeColor(currentColor);
   }
   
-  if (gameMode === 'unlimited') {
+  const themeConfig = getThemeConfig(currentTheme);
+  
+  if (currentTheme === 'idol-fanclub') {
+    showIdolFanclubCollageScreen(); // 새로운 15장 레이아웃
+  } else if (gameMode === 'unlimited') {
     showUnlimitedCollageScreen();
   } else {
     showNineCollageScreen();
@@ -934,6 +989,81 @@ function showUnlimitedCollageScreen() {
   }
 }
 
+// 아이돌 팬클럽 테마 전용 콜라주 화면 (15장, 3x5 그리드, 썸네일 숨김)
+function showIdolFanclubCollageScreen() {
+  const colorInfo = COLORS[currentColor];
+  const backgroundColor = colorInfo ? colorInfo.hex : '#6366F1';
+  
+  // 텍스트 색상 계산 (배경이 밝으면 어둡게, 어둡으면 밝게)
+  const isLightBackground = isLightColor(backgroundColor);
+  const textColor = isLightBackground ? '#1F2937' : '#FFFFFF';
+  
+  // 진행률 계산 (15장 기준)
+  const progress = Math.round((photoCount / 15) * 100);
+  
+  // 현재 날짜 생성
+  const currentDate = new Date().toISOString().split('T')[0];
+  
+  // 배경색 설정
+  document.body.style.backgroundColor = backgroundColor;
+  
+  app.innerHTML = `
+    <div class="idol-fanclub-screen animate-fade-in" style="color: ${textColor}">
+      <!-- 상단 정보 -->
+      <div class="collage-header">
+        <div class="date-display">${currentDate}</div>
+        <h1 class="color-question">${t('color.what_is_your_color', { color: t('color.' + currentColor) })}</h1>
+        
+        <!-- 프로그레스 바 -->
+        <div class="progress-container">
+          <div class="progress-track">
+            <div class="progress-fill-modern" style="width: ${progress}%"></div>
+          </div>
+          <div class="progress-text">${photoCount} / 15</div>
+        </div>
+      </div>
+      
+      <!-- 촬영 버튼 (항상 표시, 썸네일 없음) -->
+      <div class="camera-section">
+        <button onclick="openCamera()" class="main-camera-btn" style="background-color: rgba(255,255,255,0.2); border: 2px solid rgba(255,255,255,0.8);">
+          <i class="fas fa-camera"></i>
+          ${t('picture.take_photo')}
+        </button>
+        
+        <!-- 직전 사진 지우기 버튼 (새로운 기능) -->
+        ${photoCount > 0 ? `
+          <button onclick="undoLastPhoto()" class="undo-btn" style="background-color: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.5); margin-left: 16px;">
+            <i class="fas fa-undo"></i>
+            ${t('picture.undo_last')}
+          </button>
+        ` : ''}
+      </div>
+      
+      <!-- 완성 및 액션 -->
+      <div class="collage-actions">
+        ${photoCount >= 15 ? `
+          <button onclick="completeIdolFanclubCollage()" class="complete-action-btn" style="background-color: rgba(255,255,255,0.2); border: 2px solid rgba(255,255,255,0.8);">
+            ${t('collage.complete_collage')}
+          </button>
+        ` : `
+          <div class="complete-requirement" style="opacity: 0.7; font-size: 14px;">
+            ${t('alert.take_all_photos_15', { count: photoCount })}
+          </div>
+        `}
+        
+        <div class="secondary-actions">
+          <button onclick="resetSession()" class="text-action-btn">
+            ${t('management.reset')}
+          </button>
+          <button onclick="navigateToHistory(); showHistoryScreen()" class="text-action-btn">
+            ${t('management.history')}
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
 // 15개 모드 그리드 생성 (3x5 레이아웃) - 카메라 아이콘 제거
 function generateNinePhotoGrid() {
   let gridHTML = '';
@@ -946,6 +1076,249 @@ function generateNinePhotoGrid() {
     `;
   }
   return gridHTML;
+}
+
+// 직전 사진 지우기 (아이돌 팬클럽 테마 전용)
+async function undoLastPhoto() {
+  if (!currentSession || !currentSession.photos || currentSession.photos.length === 0) {
+    showError('삭제할 사진이 없습니다.');
+    return;
+  }
+
+  try {
+    showLoading('사진을 삭제하는 중...');
+    
+    // 가장 최근에 촬영한 사진 찾기 (position이 가장 큰 사진)
+    const lastPhoto = currentSession.photos.reduce((prev, current) => {
+      return (prev.position > current.position) ? prev : current;
+    });
+    
+    // 서버에서 삭제
+    const response = await axios.delete(`/api/photo/${lastPhoto.id}`);
+    
+    if (response.data.success) {
+      // 로컬 세션에서 제거
+      currentSession.photos = currentSession.photos.filter(photo => photo.id !== lastPhoto.id);
+      photoCount = currentSession.photos.length;
+      
+      // UI 새로고침
+      hideLoading();
+      showCollageScreen();
+      showSuccess('마지막 사진을 삭제했습니다.');
+    }
+    
+  } catch (error) {
+    console.error('직전 사진 삭제 오류:', error);
+    hideLoading();
+    showError('사진 삭제 중 오류가 발생했습니다.');
+  }
+}
+
+// 아이돌 팬클럽 콜라주 완성 (인스타그램 스토리 형태)
+async function completeIdolFanclubCollage() {
+  if (photoCount < 15) {
+    showError('15장의 사진을 모두 촬영해주세요.');
+    return;
+  }
+
+  try {
+    showLoading('인스타그램 스토리 콜라주를 생성하는 중...');
+    
+    // 인스타그램 스토리 메타데이터 요청
+    const response = await axios.post('/api/collage/instagram-story', {
+      sessionId: currentSession.sessionId
+    });
+    
+    if (response.data.success) {
+      const collageMetadata = response.data.collage;
+      
+      // Canvas로 인스타그램 스토리 콜라주 생성
+      const canvasDataUrl = await createInstagramStoryCollage(collageMetadata);
+      
+      // 기존 완성 API로 저장
+      const completeResponse = await axios.post('/api/collage/complete', {
+        sessionId: currentSession.sessionId,
+        collageData: canvasDataUrl
+      });
+      
+      if (completeResponse.data.success) {
+        hideLoading();
+        showInstagramStoryResult(canvasDataUrl, collageMetadata);
+      }
+    }
+    
+  } catch (error) {
+    console.error('아이돌 팬클럽 콜라주 완성 오류:', error);
+    hideLoading();
+    showError('콜라주 생성 중 오류가 발생했습니다.');
+  }
+}
+
+// Canvas로 인스타그램 스토리 콜라주 생성
+async function createInstagramStoryCollage(metadata) {
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+  
+  // 인스타그램 스토리 사이즈 (1080x1920)
+  canvas.width = metadata.dimensions.width;
+  canvas.height = metadata.dimensions.height;
+  
+  // 배경색 설정
+  ctx.fillStyle = metadata.backgroundColor;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  
+  // 3x5 그리드로 사진 배치 (330x330px, 간격 10px)
+  const photos = metadata.photos;
+  const cols = metadata.grid.cols; // 3
+  const rows = metadata.grid.rows; // 5
+  const photoSize = 330;
+  const spacing = 10;
+  
+  // 그리드 시작 위치 계산 (중앙 정렬)
+  const totalWidth = (cols * photoSize) + ((cols - 1) * spacing);
+  const totalHeight = (rows * photoSize) + ((rows - 1) * spacing);
+  const startX = (canvas.width - totalWidth) / 2;
+  const startY = (canvas.height - totalHeight) / 2 - 50; // 텍스트 공간 확보
+  
+  // 사진들을 그리드에 배치
+  for (let i = 0; i < photos.length; i++) {
+    const photo = photos[i];
+    const row = Math.floor(i / cols);
+    const col = i % cols;
+    
+    const x = startX + (col * (photoSize + spacing));
+    const y = startY + (row * (photoSize + spacing));
+    
+    try {
+      // Base64 이미지를 Canvas에 그리기
+      const img = new Image();
+      await new Promise((resolve, reject) => {
+        img.onload = resolve;
+        img.onerror = reject;
+        img.src = photo.thumbnail_data;
+      });
+      
+      // 정방형으로 크롭하여 그리기
+      ctx.drawImage(img, x, y, photoSize, photoSize);
+    } catch (error) {
+      console.warn(`사진 ${i+1} 로딩 실패:`, error);
+      // 실패한 경우 빈 사각형으로 표시
+      ctx.fillStyle = 'rgba(255,255,255,0.3)';
+      ctx.fillRect(x, y, photoSize, photoSize);
+    }
+  }
+  
+  // 텍스트 오버레이 추가
+  ctx.fillStyle = 'white';
+  ctx.shadowColor = 'rgba(0,0,0,0.5)';
+  ctx.shadowBlur = 4;
+  
+  // 상단 중앙: 컬러명
+  ctx.font = 'bold 48px Arial';
+  ctx.textAlign = 'center';
+  ctx.fillText(metadata.overlays.colorName.text.toUpperCase(), canvas.width / 2, 80);
+  
+  // 하단 좌측: 날짜
+  ctx.font = '28px Arial';
+  ctx.textAlign = 'left';
+  ctx.fillText(metadata.overlays.completedDate.text, 40, canvas.height - 40);
+  
+  // 하단 우측: 브랜딩
+  ctx.textAlign = 'right';
+  ctx.fillText(metadata.overlays.branding.text, canvas.width - 40, canvas.height - 40);
+  
+  return canvas.toDataURL('image/jpeg', 0.9);
+}
+
+// 인스타그램 스토리 결과 화면 표시
+function showInstagramStoryResult(imageDataUrl, metadata) {
+  const colorInfo = COLORS[currentColor];
+  const backgroundColor = colorInfo ? colorInfo.hex : '#6366F1';
+  
+  // 배경색 설정
+  document.body.style.backgroundColor = backgroundColor;
+  
+  app.innerHTML = `
+    <div class="instagram-story-result animate-fade-in">
+      <div class="result-header">
+        <h2 style="color: white; text-align: center; margin-bottom: 20px;">
+          🎉 인스타그램 스토리 완성!
+        </h2>
+      </div>
+      
+      <!-- 완성된 이미지 표시 -->
+      <div class="story-preview">
+        <img src="${imageDataUrl}" alt="Instagram Story Collage" style="width: 100%; max-width: 400px; border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.3);" />
+      </div>
+      
+      <!-- 액션 버튼들 -->
+      <div class="story-actions">
+        <button onclick="downloadInstagramStory('${imageDataUrl}')" class="download-btn" style="background-color: rgba(255,255,255,0.2); border: 2px solid rgba(255,255,255,0.8); color: white; padding: 12px 24px; border-radius: 8px; margin: 8px;">
+          <i class="fas fa-download"></i>
+          다운로드
+        </button>
+        
+        <button onclick="shareInstagramStory('${imageDataUrl}')" class="share-btn" style="background-color: rgba(255,255,255,0.2); border: 2px solid rgba(255,255,255,0.8); color: white; padding: 12px 24px; border-radius: 8px; margin: 8px;">
+          <i class="fas fa-share"></i>
+          공유하기
+        </button>
+        
+        <button onclick="startNewCollage()" class="new-collage-btn" style="background-color: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.5); color: white; padding: 12px 24px; border-radius: 8px; margin: 8px;">
+          <i class="fas fa-plus"></i>
+          새 콜라주
+        </button>
+        
+        <button onclick="navigateToHistory(); showHistoryScreen()" class="history-btn" style="background-color: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.5); color: white; padding: 12px 24px; border-radius: 8px; margin: 8px;">
+          <i class="fas fa-history"></i>
+          내 콜라주 보기
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+// 인스타그램 스토리 다운로드
+function downloadInstagramStory(imageDataUrl) {
+  const link = document.createElement('a');
+  link.href = imageDataUrl;
+  link.download = `color-hunt-story-${currentColor}-${new Date().toISOString().split('T')[0]}.jpg`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  
+  showSuccess('인스타그램 스토리가 다운로드되었습니다! 📱');
+}
+
+// 인스타그램 스토리 공유
+async function shareInstagramStory(imageDataUrl) {
+  if (navigator.share && navigator.canShare) {
+    try {
+      // Canvas 데이터를 Blob으로 변환
+      const response = await fetch(imageDataUrl);
+      const blob = await response.blob();
+      const file = new File([blob], `color-hunt-story-${currentColor}.jpg`, { type: 'image/jpeg' });
+      
+      await navigator.share({
+        title: 'Color Hunt 인스타그램 스토리',
+        text: `${currentColor.toUpperCase()} 컬러로 만든 나의 Color Hunt 콜라주! ✨`,
+        files: [file]
+      });
+    } catch (error) {
+      console.log('공유 취소됨 또는 오류:', error);
+      // 공유 실패 시 다운로드로 대체
+      downloadInstagramStory(imageDataUrl);
+    }
+  } else {
+    // Web Share API를 지원하지 않는 경우 다운로드
+    downloadInstagramStory(imageDataUrl);
+    showInfo('파일이 다운로드되었습니다. 갤러리에서 인스타그램으로 공유해보세요! 📱');
+  }
+}
+
+// 새 콜라주 시작
+function startNewCollage() {
+  resetSession();
+  showColorSelectionScreen();
 }
 
 // 무제한 모드 그리드 생성 (15개, 3x5)
@@ -1068,14 +1441,27 @@ function closePhotoDetail() {
   showCollageScreen();
 }
 
-// 카메라 열기
+// 카메라 열기 (테마별 지원)
 function openCamera() {
-  // 빈 슬롯 찾기
-  for (let i = 1; i <= 15; i++) { // 9 → 15로 수정
-    const slot = document.getElementById(`slot-${i}`);
-    if (!slot.classList.contains('filled')) {
-      openCameraForPosition(i);
-      return;
+  const themeConfig = getThemeConfig(currentTheme);
+  
+  if (currentTheme === 'idol-fanclub') {
+    // 아이돌 팬클럽: 순차적으로 다음 위치에 촬영
+    const nextPosition = photoCount + 1;
+    if (nextPosition <= themeConfig.maxPhotos) {
+      openCameraForPosition(nextPosition);
+    } else {
+      showError('15장을 모두 촬영했습니다.');
+    }
+  } else {
+    // 기존 방식: 빈 슬롯 찾기
+    const maxPhotos = themeConfig.maxPhotos;
+    for (let i = 1; i <= maxPhotos; i++) {
+      const slot = document.getElementById(`slot-${i}`);
+      if (!slot.classList.contains('filled')) {
+        openCameraForPosition(i);
+        return;
+      }
     }
   }
 }
@@ -1197,8 +1583,10 @@ function capturePhoto(position) {
   ctx.drawImage(video, x, y, size, size, 0, 0, originalSize, originalSize);
   const imageData = canvas.toDataURL('image/jpeg', 0.85); // 품질 85%
   
-  // 썸네일 생성 (200x200)
-  const thumbnailSize = 200;
+  // 썸네일 생성 (테마별 크기)
+  const themeConfig = getThemeConfig(currentTheme);
+  const thumbnailSize = currentTheme === 'idol-fanclub' ? 330 : 200; // 아이돌 팬클럽: 330px, 기본: 200px
+  
   const thumbnailCanvas = document.createElement('canvas');
   thumbnailCanvas.width = thumbnailSize;
   thumbnailCanvas.height = thumbnailSize;
@@ -1208,10 +1596,16 @@ function capturePhoto(position) {
   thumbCtx.drawImage(video, x, y, size, size, 0, 0, thumbnailSize, thumbnailSize);
   const thumbnailData = thumbnailCanvas.toDataURL('image/jpeg', 0.8); // 품질 80%
   
-  console.log(`📸 Photo captured: Original=${originalSize}x${originalSize}, Thumbnail=${thumbnailSize}x${thumbnailSize}`);
+  console.log(`📸 Photo captured (${currentTheme} theme): Original=${originalSize}x${originalSize}, Thumbnail=${thumbnailSize}x${thumbnailSize}`);
   
-  // 서버에 저장
-  savePhoto(position, imageData, thumbnailData);
+  // 테마별 저장 방식
+  if (currentTheme === 'idol-fanclub') {
+    // 아이돌 팬클럽: 썸네일만 저장 (원본 이미지 제외)
+    savePhoto(position, null, thumbnailData);
+  } else {
+    // 기본 테마: 기존 방식 (원본 + 썸네일)
+    savePhoto(position, imageData, thumbnailData);
+  }
   
   // 카메라 정지 및 화면 닫기
   stopCamera();
@@ -1462,7 +1856,7 @@ function updateUIAfterDelete(deletedPosition) {
 // 서버와 재동기화 (복구용)
 async function syncWithServer() {
   try {
-    const response = await axios.get(`/api/session/current/${currentUser}`);
+    const response = await axios.get(`/api/session/current/${currentUser}?theme=${currentTheme}`);
     const { session } = response.data;
     
     if (session && session.status === 'in_progress') {
