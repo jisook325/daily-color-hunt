@@ -523,12 +523,12 @@ app.post('/api/color/new', async (c) => {
   });
 });
 
-// 2. Session start API (원복된 기존 방식)
+// 2. Session start API (theme 지원 추가)
 app.post('/api/session/start', async (c) => {
   const { env } = c;
   
-  // 기존 간단한 userId 방식으로 원복
-  const { userId, color, mode = 'nine' } = await c.req.json();
+  // theme 파라미터 추가: 'main' (9장) 또는 'idol-fanclub' (15장)
+  const { userId, color, mode = 'nine', theme = 'main' } = await c.req.json();
   
   if (!userId) {
     return c.json({ error: 'User ID required' }, 400);
@@ -541,7 +541,10 @@ app.post('/api/session/start', async (c) => {
   const sessionId = generateId();
   const today = getTodayString();
 
-  // 테이블에 mode 컬럼이 있는지 확인하고, 없으면 추가
+  // idol-fanclub 테마의 경우 15장 모드로 자동 설정
+  const actualMode = theme === 'idol-fanclub' ? 'fifteen' : mode;
+
+  // 기존 mode 및 theme 컬럼 확인 (마이그레이션으로 이미 추가됨)
   try {
     await env.DB.prepare(`
       ALTER TABLE collage_sessions ADD COLUMN mode TEXT DEFAULT 'nine'
@@ -550,38 +553,42 @@ app.post('/api/session/start', async (c) => {
     // 컬럼이 이미 존재하면 무시
   }
 
-  // 기존 user_id 컬럼 사용
+  // theme 컬럼 포함하여 세션 생성
   await env.DB.prepare(`
-    INSERT INTO collage_sessions (id, user_id, color, start_date, status, mode)
-    VALUES (?, ?, ?, ?, 'in_progress', ?)
-  `).bind(sessionId, userId, color, today, mode).run();
+    INSERT INTO collage_sessions (id, user_id, color, start_date, status, mode, theme)
+    VALUES (?, ?, ?, ?, 'in_progress', ?, ?)
+  `).bind(sessionId, userId, color, today, actualMode, theme).run();
 
   return c.json({ 
     sessionId, 
     color, 
     date: today, 
-    mode
+    mode: actualMode,
+    theme
   });
 });
 
-// 3. Get current active session (기존 방식으로 원복)
+// 3. Get current active session (theme 지원 추가)
 app.get('/api/session/current/:userId', async (c) => {
   const { env } = c;
   
   // URL에서 userId 파라미터 가져오기
   const userId = c.req.param('userId');
   
+  // 쿼리 파라미터에서 theme 가져오기 (기본값: 'main')
+  const theme = c.req.query('theme') || 'main';
+  
   if (!userId) {
     return c.json({ error: 'User ID required' }, 400);
   }
 
-  // 기존 user_id 기반 세션 조회로 원복
+  // theme별 세션 조회
   const session = await env.DB.prepare(`
     SELECT * FROM collage_sessions 
-    WHERE user_id = ? AND status = 'in_progress'
+    WHERE user_id = ? AND status = 'in_progress' AND theme = ?
     ORDER BY created_at DESC 
     LIMIT 1
-  `).bind(userId).first();
+  `).bind(userId, theme).first();
 
   if (!session) {
     return c.json({ session: null });
@@ -849,12 +856,12 @@ app.post('/api/collage/complete', async (c) => {
 
     return c.json({ collageId: existingCollage.id, success: true, updated: true });
   } else {
-    // 새 콜라주 생성
+    // 새 콜라주 생성 (theme 포함)
     await env.DB.batch([
       env.DB.prepare(`
-        INSERT INTO completed_collages (id, session_id, user_id, color, date, collage_data)
-        VALUES (?, ?, ?, ?, ?, ?)
-      `).bind(collageId, sessionId, session.user_id, session.color, session.start_date, collageData),
+        INSERT INTO completed_collages (id, session_id, user_id, color, date, collage_data, theme)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `).bind(collageId, sessionId, session.user_id, session.color, session.start_date, collageData, session.theme),
       
       env.DB.prepare(`
         UPDATE collage_sessions 
@@ -869,19 +876,20 @@ app.post('/api/collage/complete', async (c) => {
   return c.json({ collageId, success: true });
 });
 
-// 7. 사용자 이력 조회 (날짜별)
+// 7. 사용자 이력 조회 (날짜별, theme 필터 지원)
 app.get('/api/history/:userId', async (c) => {
   const { env } = c;
   const userId = c.req.param('userId');
   const colorFilter = c.req.query('color');
+  const themeFilter = c.req.query('theme') || 'main'; // 기본값: main
   const limit = parseInt(c.req.query('limit') || '20');
   const offset = parseInt(c.req.query('offset') || '0');
 
   let query = `
     SELECT * FROM completed_collages 
-    WHERE user_id = ?
+    WHERE user_id = ? AND theme = ?
   `;
-  const params = [userId];
+  const params = [userId, themeFilter];
 
   if (colorFilter) {
     query += ` AND color = ?`;
@@ -895,14 +903,16 @@ app.get('/api/history/:userId', async (c) => {
 
   return c.json({ 
     collages: collages.results || [],
-    hasMore: (collages.results?.length || 0) === limit
+    hasMore: (collages.results?.length || 0) === limit,
+    theme: themeFilter
   });
 });
 
-// 8. 컬러별 통계 API
+// 8. 컬러별 통계 API (theme 필터 지원)
 app.get('/api/stats/:userId', async (c) => {
   const { env } = c;
   const userId = c.req.param('userId');
+  const themeFilter = c.req.query('theme') || 'main';
 
   const stats = await env.DB.prepare(`
     SELECT 
@@ -910,12 +920,92 @@ app.get('/api/stats/:userId', async (c) => {
       COUNT(*) as count,
       MAX(date) as last_date
     FROM completed_collages 
-    WHERE user_id = ?
+    WHERE user_id = ? AND theme = ?
     GROUP BY color
     ORDER BY count DESC
-  `).bind(userId).all();
+  `).bind(userId, themeFilter).all();
 
-  return c.json({ stats: stats.results || [] });
+  return c.json({ stats: stats.results || [], theme: themeFilter });
+});
+
+// 9. 인스타그램 스토리 콜라주 생성 API (idol-fanclub 테마 전용)
+app.post('/api/collage/instagram-story', async (c) => {
+  const { env } = c;
+  const { sessionId } = await c.req.json();
+
+  if (!sessionId) {
+    return c.json({ error: 'Session ID is required' }, 400);
+  }
+
+  try {
+    // 세션 정보 조회 (theme 확인)
+    const session = await env.DB.prepare(`
+      SELECT * FROM collage_sessions WHERE id = ?
+    `).bind(sessionId).first();
+
+    if (!session) {
+      return c.json({ error: 'Session not found' }, 404);
+    }
+
+    if (session.theme !== 'idol-fanclub') {
+      return c.json({ error: 'Instagram story format is only available for idol-fanclub theme' }, 400);
+    }
+
+    // 세션의 모든 사진 조회 (15장)
+    const photos = await env.DB.prepare(`
+      SELECT id, position, thumbnail_data 
+      FROM photos 
+      WHERE session_id = ? 
+      ORDER BY position ASC
+    `).bind(sessionId).all();
+
+    if (!photos.results || photos.results.length !== 15) {
+      return c.json({ error: 'Session must have exactly 15 photos for Instagram story format' }, 400);
+    }
+
+    // 인스타그램 스토리 형태의 콜라주 메타데이터 반환
+    // 실제 이미지 생성은 프론트엔드에서 Canvas로 처리
+    const collageMetadata = {
+      format: 'instagram-story',
+      dimensions: { width: 1080, height: 1920 },
+      grid: { rows: 5, cols: 3 },
+      photos: photos.results.map(photo => ({
+        id: photo.id,
+        position: photo.position,
+        thumbnail_data: photo.thumbnail_data,
+        size: { width: 330, height: 330 },
+        spacing: 10
+      })),
+      overlays: {
+        colorName: {
+          text: session.color,
+          position: 'top-center',
+          style: 'title'
+        },
+        completedDate: {
+          text: session.start_date,
+          position: 'bottom-left',
+          style: 'date'
+        },
+        branding: {
+          text: 'Color Hunt',
+          position: 'bottom-right',
+          style: 'brand'
+        }
+      },
+      backgroundColor: COLORS.find(c => c.name === session.color)?.hex || '#FFFFFF'
+    };
+
+    return c.json({ 
+      success: true,
+      collage: collageMetadata,
+      session: session
+    });
+
+  } catch (error) {
+    console.error('Instagram story collage creation error:', error);
+    return c.json({ error: 'Failed to create Instagram story collage' }, 500);
+  }
 });
 
 // 언어 감지 함수
