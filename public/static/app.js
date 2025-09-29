@@ -637,21 +637,8 @@ function showColorSelectionScreen() {
         <button onclick="getNewColor()" class="btn btn-primary mb-6 w-full py-4 text-lg shadow-lg hover:shadow-xl transition-all duration-200 font-semibold backdrop-blur-sm border border-white/50" style="background-color: #3445FF; color: #ffffff; border-color: #3445FF;">
           ${t('main.start')}
         </button>
-        
-        <!-- 메인 화면 광고 슬롯 -->
-        <div class="main-ad-container mt-6 flex justify-center">
-          <ins class="adsbygoogle"
-               style="display:block"
-               data-ad-client="ca-pub-6764058376790952"
-               data-ad-slot="1234567890"
-               data-ad-format="auto"
-               data-full-width-responsive="true"></ins>
-        </div>
       </div>
     </div>
-    <script>
-      (adsbygoogle = window.adsbygoogle || []).push({});
-    </script>
   `;
 }
 
@@ -865,15 +852,7 @@ function showNineCollageScreen() {
         </div>
       </div>
       
-      <!-- 촬영 중 하단 배너 광고 (비침해적) -->
-      <div class="bottom-ad-banner fixed bottom-0 left-0 right-0 bg-black/20 backdrop-blur-sm p-2 z-10">
-        <ins class="adsbygoogle"
-             style="display:block; max-height:60px;"
-             data-ad-client="ca-pub-6764058376790952"
-             data-ad-slot="9876543210"
-             data-ad-format="auto"
-             data-full-width-responsive="true"></ins>
-      </div>
+
     </div>
   `;
   
@@ -882,14 +861,7 @@ function showNineCollageScreen() {
     loadExistingPhotos();
   }
   
-  // 광고 로드 (지연 로드로 성능 최적화)
-  setTimeout(() => {
-    try {
-      (adsbygoogle = window.adsbygoogle || []).push({});
-    } catch (e) {
-      console.warn('AdSense 로드 실패:', e);
-    }
-  }, 1000);
+
 }
 
 // 무제한 모드 콜라주 화면 (15개 슬롯, 3x5 그리드)
@@ -1818,15 +1790,7 @@ function showCompletedScreen(collageData) {
         <img src="${collageData}" alt="Completed color" class="w-full max-w-md mx-auto rounded-lg shadow-lg">
       </div>
       
-      <!-- 완료 화면 전면 광고 -->
-      <div class="completion-ad-container mb-6 bg-white/10 backdrop-blur-sm rounded-lg p-4">
-        <ins class="adsbygoogle"
-             style="display:block"
-             data-ad-client="ca-pub-6764058376790952"
-             data-ad-slot="1111111111"
-             data-ad-format="auto"
-             data-full-width-responsive="true"></ins>
-      </div>
+
       
       <div class="space-y-4">
         <button onclick="downloadCollage('${collageData}')" class="btn btn-${buttonStyle} w-full">
@@ -1847,14 +1811,7 @@ function showCompletedScreen(collageData) {
     </div>
   `;
   
-  // 완료 화면 광고 로드 (약간의 지연으로 성능 최적화)
-  setTimeout(() => {
-    try {
-      (adsbygoogle = window.adsbygoogle || []).push({});
-    } catch (e) {
-      console.warn('완료 화면 AdSense 로드 실패:', e);
-    }
-  }, 1500);
+
   
   // 완성 화면 진입 후 자동 저장 + 토스트 (약간의 딜레이)
   setTimeout(() => {
