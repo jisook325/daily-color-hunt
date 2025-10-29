@@ -1380,11 +1380,11 @@ function stopCamera() {
 
 
 
-// ULTRA SIMPLE 사진 촬영 - 프리징 방지 v2
+// ULTRA SIMPLE 사진 촬영 - 로딩 오버레이 제거
 function capturePhoto(position) {
   console.log(`📸 SIMPLE capturePhoto - position: ${position}`);
   
-  showLoading('Taking photo...');
+  // ❌ showLoading() 제거 - 검은 오버레이가 카메라를 가림!
   
   // requestAnimationFrame으로 비블로킹 처리
   requestAnimationFrame(() => {
@@ -1394,7 +1394,6 @@ function capturePhoto(position) {
       
       if (!video || !canvas || video.videoWidth === 0) {
         console.error('❌ Camera not ready');
-        hideLoading();
         showError('Camera not ready');
         return;
       }
@@ -1430,17 +1429,18 @@ function capturePhoto(position) {
         
       } catch (error) {
         console.error('❌ Capture failed:', error);
-        hideLoading();
         showError('Capture failed');
       }
     }, 50);
   });
 }
 
-// 초간단 저장 함수
+// 초간단 저장 함수 - 로딩 오버레이 없음
 async function savePhotoSimple(position, imageData, thumbnailData) {
   try {
     const sessionId = currentSession?.sessionId || currentSession?.id;
+    
+    console.log('💾 Saving photo to server...');
     
     const response = await axios.post('/api/photo/add', {
       sessionId: sessionId,
@@ -1449,7 +1449,7 @@ async function savePhotoSimple(position, imageData, thumbnailData) {
       thumbnailData: thumbnailData
     });
     
-    console.log('✅ Photo saved');
+    console.log('✅ Photo saved successfully');
     
     // UI 업데이트
     const slot = document.getElementById(`slot-${position}`);
@@ -1458,21 +1458,19 @@ async function savePhotoSimple(position, imageData, thumbnailData) {
       slot.classList.add('filled');
     }
     
-    hideLoading();
+    // ❌ hideLoading() 제거 - 검은 오버레이 제거
     showSuccess('Photo saved');
     
-    // ✅ 성공 시 카메라 정리와 화면 전환 (비동기)
-    setTimeout(() => {
-      stopCamera();
-      closeCameraView();
-    }, 100);
+    // ✅ 성공 시 카메라 정리와 화면 전환 (즉시)
+    stopCamera();
+    closeCameraView();
     
   } catch (error) {
     console.error('❌ Save failed:', error);
-    hideLoading();
+    // ❌ hideLoading() 제거
     showError('Save failed');
     
-    // ❌ 실패 시 카메라 정리 (500ms 후)
+    // ❌ 실패 시에도 카메라 정리
     setTimeout(() => {
       stopCamera();
       closeCameraView();
