@@ -1111,7 +1111,7 @@ function openCameraForPosition(position) {
       
       <!-- 하단 촬영 버튼 -->
       <div class="square-camera-footer">
-        <button onclick="capturePhoto(${position})" class="square-capture-btn">
+        <button onclick="simpleCapturePhoto(${position})" class="square-capture-btn">
           <div class="square-capture-circle">
             <div class="square-capture-inner"></div>
           </div>

@@ -189,6 +189,8 @@ export const renderer = jsxRenderer(({ children, ...props }) => {
         
         {/* 메인 앱 스크립트 */}
         <script src="/static/app.js"></script>
+        {/* 단순화된 촬영 함수 (프리징 방지) */}
+        <script src="/static/simple-capture.js"></script>
       </body>
     </html>
   )
