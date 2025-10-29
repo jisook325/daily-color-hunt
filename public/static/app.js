@@ -1111,7 +1111,7 @@ function openCameraForPosition(position) {
       
       <!-- 하단 촬영 버튼 -->
       <div class="square-camera-footer">
-        <button onclick="simpleCapturePhoto(${position})" class="square-capture-btn">
+        <button onclick="capturePhoto(${position})" class="square-capture-btn">
           <div class="square-capture-circle">
             <div class="square-capture-inner"></div>
           </div>
@@ -1380,106 +1380,93 @@ function stopCamera() {
 
 
 
-// 사진 촬영 (정방형 크롭 및 리사이징) - 디버깅 강화
-async function capturePhoto(position) {
-  console.log(`🎯 capturePhoto 함수 호출됨 - position: ${position}`);
+// ULTRA SIMPLE 사진 촬영 - 프리징 방지
+function capturePhoto(position) {
+  console.log(`📸 SIMPLE capturePhoto - position: ${position}`);
   
-  const video = document.getElementById('cameraPreview');
-  const canvas = document.getElementById('captureCanvas');
+  showLoading('Taking photo...');
   
-  console.log(`📹 Video 요소:`, video);
-  console.log(`🖼️ Canvas 요소:`, canvas);
-  
-  if (!video || !canvas) {
-    console.error('❌ Video 또는 Canvas 요소를 찾을 수 없습니다');
-    showError('카메라 요소를 찾을 수 없습니다. 다시 시도해주세요.');
-    return;
-  }
-  
-  // 비디오가 준비될 때까지 대기
-  console.log(`📺 Video 상태: width=${video.videoWidth}, height=${video.videoHeight}, readyState=${video.readyState}`);
-  
-  if (video.videoWidth === 0 || video.videoHeight === 0) {
-    console.error('❌ 비디오 스트림이 준비되지 않았습니다');
-    showError('카메라 스트림이 준비되지 않았습니다. 잠시 후 다시 시도해주세요.');
-    return;
-  }
-  
-  // 하드웨어 줌 적용 중이면 완료될 때까지 대기 (최대 1초)
-  if (isApplyingHardwareZoom) {
-    console.log('⏳ 하드웨어 줌 적용 중... 대기합니다');
-    let waitCount = 0;
-    while (isApplyingHardwareZoom && waitCount < 20) {
-      await new Promise(resolve => setTimeout(resolve, 50));
-      waitCount++;
+  // setTimeout으로 비블로킹 처리
+  setTimeout(() => {
+    const video = document.getElementById('cameraPreview');
+    const canvas = document.getElementById('captureCanvas');
+    
+    if (!video || !canvas || video.videoWidth === 0) {
+      console.error('❌ Camera not ready');
+      hideLoading();
+      showError('Camera not ready');
+      return;
     }
-    console.log(`✅ 하드웨어 줌 대기 완료 (${waitCount * 50}ms)`);
-  }
-  
-  // 현재 줌 레벨 로깅
-  console.log(`📸 줌 상태로 사진 촬영 시작: CSS줌=${video.style.transform}, 하드웨어줌=${targetHardwareZoom}`);
-  
-  const ctx = canvas.getContext('2d');
-  
-  // 정방형 크롭 계산
-  const size = Math.min(video.videoWidth, video.videoHeight);
-  const x = (video.videoWidth - size) / 2;
-  const y = (video.videoHeight - size) / 2;
-  
-  // 원본 이미지 (정방형, 적당한 크기로 리사이징)
-  const originalSize = 800; // 800x800으로 제한 (Storage 문제 해결)
-  canvas.width = originalSize;
-  canvas.height = originalSize;
-  
-  console.log(`🎯 캔버스 그리기 시작: 크롭 영역(${x}, ${y}, ${size}x${size}) → 캔버스(${originalSize}x${originalSize})`);
-  
-  // 정방형으로 크롭하여 원본 생성
-  try {
-    ctx.drawImage(video, x, y, size, size, 0, 0, originalSize, originalSize);
-    const imageData = canvas.toDataURL('image/jpeg', 0.85); // 품질 85%
-    console.log(`✅ 원본 이미지 생성 완료: ${imageData.length} bytes`);
     
-    // 썸네일 생성 (200x200)
-    const thumbnailSize = 200;
-    const thumbnailCanvas = document.createElement('canvas');
-    thumbnailCanvas.width = thumbnailSize;
-    thumbnailCanvas.height = thumbnailSize;
-    const thumbCtx = thumbnailCanvas.getContext('2d');
+    console.log('✅ Capturing...');
     
-    // 동일한 정방형 크롭으로 썸네일 생성
-    thumbCtx.drawImage(video, x, y, size, size, 0, 0, thumbnailSize, thumbnailSize);
-    const thumbnailData = thumbnailCanvas.toDataURL('image/jpeg', 0.8); // 품질 80%
-    console.log(`✅ 썸네일 생성 완료: ${thumbnailData.length} bytes`);
-    
-    console.log(`📸 사진 캡처 완료: Original=${originalSize}x${originalSize}, Thumbnail=${thumbnailSize}x${thumbnailSize}`);
-    
-    // Save to server with timeout protection
     try {
-      const savePromise = savePhoto(position, imageData, thumbnailData);
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Save timeout after 10 seconds')), 10000);
-      });
+      const ctx = canvas.getContext('2d');
+      const size = Math.min(video.videoWidth, video.videoHeight);
+      const x = (video.videoWidth - size) / 2;
+      const y = (video.videoHeight - size) / 2;
       
-      await Promise.race([savePromise, timeoutPromise]);
+      // 800x800 원본
+      canvas.width = 800;
+      canvas.height = 800;
+      ctx.drawImage(video, x, y, size, size, 0, 0, 800, 800);
+      const imageData = canvas.toDataURL('image/jpeg', 0.85);
       
-    } catch (saveError) {
-      console.error('❌ Photo save failed:', saveError);
-      showError('Photo save failed. Please try again.');
+      // 200x200 썸네일
+      const thumbCanvas = document.createElement('canvas');
+      thumbCanvas.width = 200;
+      thumbCanvas.height = 200;
+      const thumbCtx = thumbCanvas.getContext('2d');
+      thumbCtx.drawImage(video, x, y, size, size, 0, 0, 200, 200);
+      const thumbnailData = thumbCanvas.toDataURL('image/jpeg', 0.8);
+      
+      console.log('✅ Images ready, saving...');
+      
+      // 간단한 저장
+      savePhotoSimple(position, imageData, thumbnailData);
+      
+    } catch (error) {
+      console.error('❌ Capture failed:', error);
+      hideLoading();
+      showError('Capture failed');
     }
+  }, 100);
+}
+
+// 초간단 저장 함수
+async function savePhotoSimple(position, imageData, thumbnailData) {
+  try {
+    const sessionId = currentSession?.sessionId || currentSession?.id;
+    
+    const response = await axios.post('/api/photo/add', {
+      sessionId: sessionId,
+      position: position,
+      imageData: imageData,
+      thumbnailData: thumbnailData
+    });
+    
+    console.log('✅ Photo saved');
+    
+    // UI 업데이트
+    const slot = document.getElementById(`slot-${position}`);
+    if (slot) {
+      slot.innerHTML = `<img src="${thumbnailData}" alt="Photo ${position}">`;
+      slot.classList.add('filled');
+    }
+    
+    hideLoading();
+    showSuccess('Photo saved');
     
   } catch (error) {
-    console.error('❌ Canvas drawing failed:', error);
-    showError('Photo processing failed: ' + error.message);
+    console.error('❌ Save failed:', error);
+    hideLoading();
+    showError('Save failed');
   } finally {
-    // Always ensure camera is stopped and view is closed
-    console.log('🔄 Cleaning up camera resources');
-    stopCamera();
-    
-    // Force close camera view with delay to prevent freezing
+    // 항상 카메라 정리
     setTimeout(() => {
+      stopCamera();
       closeCameraView();
-      hideLoading(); // Ensure loading overlay is removed
-    }, 100);
+    }, 200);
   }
 }
 
