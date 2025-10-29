@@ -1380,57 +1380,61 @@ function stopCamera() {
 
 
 
-// ULTRA SIMPLE 사진 촬영 - 프리징 방지
+// ULTRA SIMPLE 사진 촬영 - 프리징 방지 v2
 function capturePhoto(position) {
   console.log(`📸 SIMPLE capturePhoto - position: ${position}`);
   
   showLoading('Taking photo...');
   
-  // setTimeout으로 비블로킹 처리
-  setTimeout(() => {
-    const video = document.getElementById('cameraPreview');
-    const canvas = document.getElementById('captureCanvas');
-    
-    if (!video || !canvas || video.videoWidth === 0) {
-      console.error('❌ Camera not ready');
-      hideLoading();
-      showError('Camera not ready');
-      return;
-    }
-    
-    console.log('✅ Capturing...');
-    
-    try {
-      const ctx = canvas.getContext('2d');
-      const size = Math.min(video.videoWidth, video.videoHeight);
-      const x = (video.videoWidth - size) / 2;
-      const y = (video.videoHeight - size) / 2;
+  // requestAnimationFrame으로 비블로킹 처리
+  requestAnimationFrame(() => {
+    setTimeout(() => {
+      const video = document.getElementById('cameraPreview');
+      const canvas = document.getElementById('captureCanvas');
       
-      // 800x800 원본
-      canvas.width = 800;
-      canvas.height = 800;
-      ctx.drawImage(video, x, y, size, size, 0, 0, 800, 800);
-      const imageData = canvas.toDataURL('image/jpeg', 0.85);
+      if (!video || !canvas || video.videoWidth === 0) {
+        console.error('❌ Camera not ready');
+        hideLoading();
+        showError('Camera not ready');
+        return;
+      }
       
-      // 200x200 썸네일
-      const thumbCanvas = document.createElement('canvas');
-      thumbCanvas.width = 200;
-      thumbCanvas.height = 200;
-      const thumbCtx = thumbCanvas.getContext('2d');
-      thumbCtx.drawImage(video, x, y, size, size, 0, 0, 200, 200);
-      const thumbnailData = thumbCanvas.toDataURL('image/jpeg', 0.8);
+      console.log('✅ Capturing...');
       
-      console.log('✅ Images ready, saving...');
-      
-      // 간단한 저장
-      savePhotoSimple(position, imageData, thumbnailData);
-      
-    } catch (error) {
-      console.error('❌ Capture failed:', error);
-      hideLoading();
-      showError('Capture failed');
-    }
-  }, 100);
+      try {
+        const ctx = canvas.getContext('2d');
+        const size = Math.min(video.videoWidth, video.videoHeight);
+        const x = (video.videoWidth - size) / 2;
+        const y = (video.videoHeight - size) / 2;
+        
+        // 800x800 원본
+        canvas.width = 800;
+        canvas.height = 800;
+        ctx.drawImage(video, x, y, size, size, 0, 0, 800, 800);
+        const imageData = canvas.toDataURL('image/jpeg', 0.85);
+        
+        // 썸네일 생성을 다음 프레임으로 지연
+        requestAnimationFrame(() => {
+          const thumbCanvas = document.createElement('canvas');
+          thumbCanvas.width = 200;
+          thumbCanvas.height = 200;
+          const thumbCtx = thumbCanvas.getContext('2d');
+          thumbCtx.drawImage(video, x, y, size, size, 0, 0, 200, 200);
+          const thumbnailData = thumbCanvas.toDataURL('image/jpeg', 0.8);
+          
+          console.log('✅ Images ready, saving...');
+          
+          // 간단한 저장
+          savePhotoSimple(position, imageData, thumbnailData);
+        });
+        
+      } catch (error) {
+        console.error('❌ Capture failed:', error);
+        hideLoading();
+        showError('Capture failed');
+      }
+    }, 50);
+  });
 }
 
 // 초간단 저장 함수
@@ -1457,20 +1461,22 @@ async function savePhotoSimple(position, imageData, thumbnailData) {
     hideLoading();
     showSuccess('Photo saved');
     
-    // ✅ 성공 시에만 카메라 정리
-    stopCamera();
-    closeCameraView();
+    // ✅ 성공 시 카메라 정리와 화면 전환 (비동기)
+    setTimeout(() => {
+      stopCamera();
+      closeCameraView();
+    }, 100);
     
   } catch (error) {
     console.error('❌ Save failed:', error);
     hideLoading();
     showError('Save failed');
     
-    // ❌ 실패해도 카메라 정리 (1초 후)
+    // ❌ 실패 시 카메라 정리 (500ms 후)
     setTimeout(() => {
       stopCamera();
       closeCameraView();
-    }, 1000);
+    }, 500);
   }
 }
 
