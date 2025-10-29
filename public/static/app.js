@@ -798,8 +798,12 @@ function showCollageScreen() {
     updateThemeColor(currentColor);
   }
   
-  // 15장 모드로 통일
-  showUnlimitedCollageScreen();
+  // 15장 모드로 통일 - 비동기로 실행하여 블로킹 방지
+  requestAnimationFrame(() => {
+    setTimeout(() => {
+      showUnlimitedCollageScreen();
+    }, 0);
+  });
 }
 
 // 15개 모드 콜라주 화면 (3x5 레이아웃)
@@ -1451,19 +1455,27 @@ async function savePhotoSimple(position, imageData, thumbnailData) {
     
     console.log('✅ Photo saved successfully');
     
-    // UI 업데이트
-    const slot = document.getElementById(`slot-${position}`);
-    if (slot) {
-      slot.innerHTML = `<img src="${thumbnailData}" alt="Photo ${position}">`;
-      slot.classList.add('filled');
-    }
-    
-    // ❌ hideLoading() 제거 - 검은 오버레이 제거
     showSuccess('Photo saved');
     
-    // ✅ 성공 시 카메라 정리와 화면 전환 (즉시)
-    stopCamera();
-    closeCameraView();
+    // ✅ 먼저 화면 전환 (카메라는 아직 켜진 상태)
+    requestAnimationFrame(() => {
+      // 화면 전환을 다음 프레임에 실행
+      showCollageScreen();
+      
+      // 화면 전환 후 카메라 정리 (500ms 후)
+      setTimeout(() => {
+        stopCamera();
+      }, 500);
+    });
+    
+    // UI 업데이트 (화면 전환 후 실행)
+    setTimeout(() => {
+      const slot = document.getElementById(`slot-${position}`);
+      if (slot) {
+        slot.innerHTML = `<img src="${thumbnailData}" alt="Photo ${position}">`;
+        slot.classList.add('filled');
+      }
+    }, 100);
     
   } catch (error) {
     console.error('❌ Save failed:', error);
