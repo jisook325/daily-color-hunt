@@ -3,20 +3,19 @@ import { cors } from 'hono/cors'
 import { serveStatic } from 'hono/cloudflare-workers'
 import { renderer } from './renderer'
 
-// Color constants definition (Rainbow colors + black + extras, excluding white for visibility)
+// Color constants definition (Updated vibrant colors, excluding white for visibility)
 const COLORS = [
-  { name: 'red', hex: '#FF3333', english: 'Red', korean: '빨강' },
-  { name: 'orange', hex: '#FFCC99', english: 'Orange', korean: '주황' },
-  { name: 'yellow', hex: '#FFF2CC', english: 'Yellow', korean: '노랑' },
-  { name: 'green', hex: '#C6E2C7', english: 'Green', korean: '초록' },
-  { name: 'blue', hex: '#B3D3FF', english: 'Blue', korean: '파랑' },
-  { name: 'lavender', hex: '#C7B3EB', english: 'Lavender', korean: '보라' },
-  { name: 'purple', hex: '#E0B3FF', english: 'Violet', korean: '보라' },
+  { name: 'red', hex: '#D72638', english: 'Red', korean: '빨강' },
+  { name: 'orange', hex: '#FF8C42', english: 'Orange', korean: '주황' },
+  { name: 'yellow', hex: '#F4B400', english: 'Yellow', korean: '노랑' },
+  { name: 'green', hex: '#2E8B57', english: 'Green', korean: '초록' },
+  { name: 'blue', hex: '#007ACC', english: 'Blue', korean: '파랑' },
+  { name: 'purple', hex: '#6C2DC7', english: 'Purple', korean: '보라' },
   // { name: 'white', hex: '#FEFEFE', english: 'White', korean: '흰색' }, // 제외: 텍스트 가독성 문제
   { name: 'black', hex: '#2D2D2D', english: 'Black', korean: '검정' },
-  { name: 'pink', hex: '#ffbde4', english: 'Pink', korean: '분홍' },
-  { name: 'tan', hex: '#D2B48C', english: 'Tan', korean: '황갈색' },
-  { name: 'beige', hex: '#A67B5B', english: 'French Beige', korean: '베이지' },
+  { name: 'pink', hex: '#E75480', english: 'Pink', korean: '분홍' },
+  { name: 'tan', hex: '#A67C52', english: 'Tan', korean: '황갈색' },
+  { name: 'beige', hex: '#8B5E3C', english: 'French Beige', korean: '베이지' },
   { name: 'matcha', hex: '#82A860', english: 'Matcha', korean: '말차' }
 ];
 

@@ -6,7 +6,7 @@ let currentSession = null;
 let currentColor = null;
 let photoCount = 0;
 let mediaStream = null;
-let gameMode = 'nine'; // 'nine' 또는 'unlimited'
+let gameMode = 'unlimited'; // 15장 모드로 통일
 
 // 상태바 색상 업데이트 함수 (강화된 버전)
 function updateThemeColor(colorKey) {
@@ -53,22 +53,21 @@ function updateThemeColor(colorKey) {
 // 다국어 시스템
 let currentLanguage = 'en'; // 기본 언어
 let i18nData = {}; // 다국어 데이터 저장소
-let isI18nLoaded = false; // 로딩 상태
+let isI18nLoaded = true; // 즉시 사용 가능
 
 // 컬러 정보 (백엔드와 동기화됨) - 하얀색 제외
 const COLORS = {
-  red: { hex: '#FF3333', english: 'Red', korean: '빨강' },
-  orange: { hex: '#FFCC99', english: 'Orange', korean: '주황' },
-  yellow: { hex: '#FFF2CC', english: 'Yellow', korean: '노랑' },
-  green: { hex: '#C6E2C7', english: 'Green', korean: '초록' },
-  blue: { hex: '#B3D3FF', english: 'Blue', korean: '파랑' },
-  lavender: { hex: '#C7B3EB', english: 'Lavender', korean: '보라' },
-  purple: { hex: '#E0B3FF', english: 'Violet', korean: '보라' },
+  red: { hex: '#D72638', english: 'Red', korean: '빨강' },
+  orange: { hex: '#FF8C42', english: 'Orange', korean: '주황' },
+  yellow: { hex: '#F4B400', english: 'Yellow', korean: '노랑' },
+  green: { hex: '#2E8B57', english: 'Green', korean: '초록' },
+  blue: { hex: '#007ACC', english: 'Blue', korean: '파랑' },
+  purple: { hex: '#6C2DC7', english: 'Purple', korean: '보라' },
   // white: { hex: '#FEFEFE', english: 'White', korean: '흰색' }, // 제외: 텍스트 가독성
   black: { hex: '#2D2D2D', english: 'Black', korean: '검정' },
-  pink: { hex: '#ffbde4', english: 'Pink', korean: '분홍' },
-  tan: { hex: '#D2B48C', english: 'Tan', korean: '황갈색' },
-  beige: { hex: '#A67B5B', english: 'French Beige', korean: '베이지' },
+  pink: { hex: '#E75480', english: 'Pink', korean: '분홍' },
+  tan: { hex: '#A67C52', english: 'Tan', korean: '황갈색' },
+  beige: { hex: '#8B5E3C', english: 'French Beige', korean: '베이지' },
   matcha: { hex: '#82A860', english: 'Matcha', korean: '말차' }
 };
 
@@ -81,6 +80,7 @@ document.addEventListener('DOMContentLoaded', async function() {
   
   // 다국어 데이터 로드
   showLoading('Loading...');
+  loadFallbackTranslations(); // 즉시 로드
   await loadI18nData();
   hideLoading();
   
@@ -450,9 +450,18 @@ async function checkCurrentSession() {
       try {
         session = JSON.parse(cachedSession);
         
-        // 세션이 유효한지 체크 (날짜 체크 완화)
-        const isValidSession = session && session.status === 'in_progress';
+        // 🚨 세션 복구 조건 강화 (완료된 세션 제외)
+        const isInProgressSession = session && session.status === 'in_progress';
+        const isNotCompleted = session && session.status !== 'completed';
         const hasPhotos = session.photos && session.photos.length > 0;
+        const hasIncompletePhotos = hasPhotos && session.photos.length < 15; // 15장 미만만 복구
+        
+        // 완료된 세션 명시적 제외
+        if (session && session.status === 'completed') {
+          console.log('⚠️ 완료된 세션은 복구하지 않음:', session.color);
+          localStorage.removeItem('colorhunt_current_session'); // 완료된 세션 정리
+          return; // 복구 중단
+        }
         
         // 세션 날짜가 있으면 24시간 체크, 없으면 사진 여부로 판단
         let isWithinTimeLimit = true;
@@ -461,13 +470,13 @@ async function checkCurrentSession() {
           isWithinTimeLimit = sessionAge < 24 * 60 * 60 * 1000;
         }
         
-        if (isValidSession && (isWithinTimeLimit || hasPhotos)) {
+        if (isInProgressSession && isNotCompleted && (isWithinTimeLimit || hasIncompletePhotos)) {
           console.log('✅ 1단계: localStorage에서 세션 복구 성공');
           currentSession = session;
           currentColor = session.color;
           updateThemeColor(currentColor);
           photoCount = session.photos?.length || 0;
-          gameMode = session.mode || 'nine';
+          gameMode = 'unlimited'; // 15장 모드로 통일
           showCollageScreen();
           return;
         }
@@ -482,6 +491,14 @@ async function checkCurrentSession() {
       try {
         const sessionDB = new ColorHuntSessionDB();
         const indexedSession = await sessionDB.getSession(currentUser);
+        
+        // 🚨 IndexedDB 완료된 세션 제외 강화
+        if (indexedSession && indexedSession.status === 'completed') {
+          console.log('⚠️ IndexedDB 완료된 세션은 복구하지 않음:', indexedSession.color);
+          await sessionDB.clearCompletedSession(currentUser); // IndexedDB에서도 완료된 세션 정리
+          return; // 복구 중단
+        }
+        
         if (indexedSession && indexedSession.status === 'in_progress') {
           
           // IndexedDB에서 개별 사진들도 복구 시도
@@ -491,15 +508,15 @@ async function checkCurrentSession() {
             console.log(`🖼️ IndexedDB에서 ${savedPhotos.length}장의 사진 복구`);
           }
           
-          // 세션 날짜 체크 완화
-          const hasPhotos = indexedSession.photos && indexedSession.photos.length > 0;
+          // 🚨 15장 미만인 경우만 복구
+          const hasIncompletePhotos = indexedSession.photos && indexedSession.photos.length < 15;
           let isWithinTimeLimit = true;
           if (indexedSession.created_at) {
             const sessionAge = Date.now() - new Date(indexedSession.created_at).getTime();
             isWithinTimeLimit = sessionAge < 24 * 60 * 60 * 1000;
           }
           
-          if (isWithinTimeLimit || hasPhotos) {
+          if ((isWithinTimeLimit || hasIncompletePhotos) && hasIncompletePhotos) {
             console.log('✅ 2단계: IndexedDB에서 세션 복구 성공 (Safari 보호)');
             // localStorage에도 백업
             localStorage.setItem('colorhunt_current_session', JSON.stringify(indexedSession));
@@ -507,7 +524,7 @@ async function checkCurrentSession() {
             currentColor = indexedSession.color;
             updateThemeColor(currentColor);
             photoCount = indexedSession.photos?.length || 0;
-            gameMode = indexedSession.mode || 'nine';
+            gameMode = 'unlimited'; // 15장 모드로 통일
             showCollageScreen();
             return;
           } else {
@@ -533,7 +550,7 @@ async function checkCurrentSession() {
               user_id: currentUser,
               color: recentPhoto.color,
               status: 'in_progress',
-              mode: 'nine',
+              mode: 'unlimited',
               photos: savedPhotos,
               created_at: recentPhoto.created_at,
               reconstructed: true // 재구성된 세션임을 표시
@@ -597,7 +614,7 @@ async function checkCurrentSession() {
       currentColor = session.color;
       updateThemeColor(currentColor); // 상태바 색상 업데이트
       photoCount = session.photos?.length || 0;
-      gameMode = session.mode || 'nine'; // 모드 정보 복원
+      gameMode = 'unlimited'; // 15장 모드로 통일
       showCollageScreen();
     } else {
       // 새로운 컬러 선택 화면으로
@@ -701,9 +718,9 @@ function showColorConfirmationScreen(color, date) {
       </div>
       
       <div class="mt-8 space-y-4">
-        <button onclick="startNineMode()" class="btn btn-${buttonStyle} w-full py-4 text-lg">
+        <button onclick="startUnlimitedMode()" class="btn btn-${buttonStyle} w-full py-4 text-lg">
           <i class="fas fa-camera mr-2"></i>
-          ${t('main.nine_mode')}
+          ${t('main.start_hunt')}
         </button>
         
         <button onclick="getNewColor('${color.name}')" class="btn btn-outline-${buttonStyle} w-full mt-6">
@@ -781,17 +798,13 @@ function showCollageScreen() {
     updateThemeColor(currentColor);
   }
   
-  if (gameMode === 'unlimited') {
-    showUnlimitedCollageScreen();
-  } else {
-    showNineCollageScreen();
-  }
+  // 15장 모드로 통일
+  showUnlimitedCollageScreen();
 }
 
 // 15개 모드 콜라주 화면 (3x5 레이아웃)
 function showNineCollageScreen() {
   const colorInfo = COLORS[currentColor];
-  const progress = Math.round((photoCount / 15) * 100);
   
   // 배경색 유지
   if (document.body.style.backgroundColor !== colorInfo.hex) {
@@ -815,13 +828,7 @@ function showNineCollageScreen() {
         <div class="date-display">${currentDate}</div>
         <h1 class="color-question">${t('color.what_is_your_color', { color: t('color.' + currentColor) })}</h1>
         
-        <!-- 프로그레스 바 -->
-        <div class="progress-container">
-          <div class="progress-track">
-            <div class="progress-fill-modern" style="width: ${progress}%"></div>
-          </div>
-          <div class="progress-text">${photoCount} / 15</div>
-        </div>
+        <!-- 진행률 표시 제거됨 -->
       </div>
       
       <!-- 사진 그리드 -->
@@ -894,7 +901,7 @@ function showUnlimitedCollageScreen() {
         <h1 class="color-question">${t('color.what_is_your_color', { color: t('color.' + currentColor) })}</h1>
         
         <button onclick="openCamera()" class="main-action-btn photo-btn" style="background-color: rgba(255,255,255,0.2); border: 2px solid rgba(255,255,255,0.8); margin: 16px 0;">
-          ${t('picture.take_photo', { number: '' })} (${photoCount}/15)
+          ${t('picture.take_photo', { number: '' })}
         </button>
       </div>
       
@@ -905,15 +912,11 @@ function showUnlimitedCollageScreen() {
       
       <!-- 하단 액션 -->
       <div class="unlimited-actions">
-        ${photoCount >= 9 ? `
+        ${photoCount >= 15 ? `
           <button onclick="completeCollage()" class="complete-action-btn" style="background-color: rgba(255,255,255,0.2); border: 2px solid rgba(255,255,255,0.8);">
             ${t('collage.complete_collage')}
           </button>
-        ` : `
-          <div class="complete-requirement" style="opacity: 0.7; font-size: 14px;">
-            ${t('alert.take_all_photos', { count: photoCount })}
-          </div>
-        `}
+        ` : ``}
         
         <div class="secondary-actions">
           <button onclick="resetSession()" class="text-action-btn">
@@ -1483,25 +1486,12 @@ async function syncWithServer() {
   }
 }
 
-// 진행률 업데이트
+// 완성 버튼 상태만 업데이트 (진행률 표시 제거됨)
 function updateProgress() {
   // 실제 사진 개수 재계산
   const actualCount = recalculatePhotoCount();
-  const progress = Math.round((actualCount / 15) * 100);
   
-  // 모던 프로그레스 바 업데이트 (새로운 클래스명 사용)
-  const progressFill = document.querySelector('.progress-fill-modern');
-  if (progressFill) {
-    progressFill.style.width = `${progress}%`;
-  }
-  
-  // 진행률 텍스트 업데이트 (새로운 구조에 맞게)
-  const progressText = document.querySelector('.progress-text');
-  if (progressText) {
-    progressText.textContent = `${actualCount} / 15`;
-  }
-  
-  // 완성 버튼 업데이트 (안전한 방식으로)
+  // 완성 버튼 업데이트만 수행
   updateCompleteButton(actualCount);
 }
 
@@ -1585,6 +1575,28 @@ async function completeCollage() {
     });
     
     hideLoading();
+    
+    // 🎯 세션 상태를 완료로 변경 (세션 충돌 방지)
+    if (currentSession) {
+      currentSession.status = 'completed';
+      currentSession.completed_at = new Date().toISOString();
+      
+      // localStorage에 완료 상태 반영
+      localStorage.setItem('colorhunt_current_session', JSON.stringify(currentSession));
+      
+      // IndexedDB에도 완료 상태 저장 (Safari 보호)
+      if (typeof ColorHuntSessionDB !== 'undefined') {
+        try {
+          const sessionDB = new ColorHuntSessionDB();
+          await sessionDB.saveSession(currentUser, currentSession);
+          console.log('💾 세션 완료 상태 IndexedDB 저장 완료');
+        } catch (e) {
+          console.warn('⚠️ IndexedDB 완료 상태 저장 실패:', e.message);
+        }
+      }
+      
+      console.log('✅ 세션 완료 처리:', currentColor, currentSession.status);
+    }
     
     // GA 이벤트 추적
     trackEvent('collage_completed', {
@@ -1879,12 +1891,52 @@ function downloadCollage(dataUrl) {
   }
 }
 
-// 새 콜라주 시작
-function startNewCollage() {
-  currentSession = null;
-  currentColor = null;
-  photoCount = 0;
-  showColorSelectionScreen();
+// 새 콜라주 시작 (세션 충돌 방지 강화)
+async function startNewCollage() {
+  try {
+    console.log('🆕 새 콜라주 시작 - 이전 세션 완전 정리');
+    
+    // 1. 현재 세션이 완료되었는지 확인
+    if (currentSession && currentSession.status === 'in_progress' && photoCount < 15) {
+      console.log('⚠️ 진행 중인 세션이 있습니다. 정말로 새로 시작하시겠습니까?');
+      if (!confirm('현재 진행 중인 세션이 있습니다. 새로 시작하면 기존 사진들이 사라집니다. 계속하시겠습니까?')) {
+        return; // 사용자가 취소하면 중단
+      }
+    }
+    
+    // 2. 메모리 변수 초기화
+    currentSession = null;
+    currentColor = null;
+    photoCount = 0;
+    gameMode = 'unlimited'; // 15장 모드로 고정
+    
+    // 3. localStorage 완전 정리
+    localStorage.removeItem('colorhunt_current_session');
+    localStorage.removeItem('colorhunt_session_backup');
+    console.log('🗑️ localStorage 세션 데이터 정리 완료');
+    
+    // 4. IndexedDB 진행 중 세션 정리 (SafarI 보호)
+    if (typeof ColorHuntSessionDB !== 'undefined') {
+      try {
+        const sessionDB = new ColorHuntSessionDB();
+        await sessionDB.clearCompletedSession(currentUser);
+        console.log('🗑️ IndexedDB 완료된 세션 정리 완료');
+      } catch (e) {
+        console.warn('⚠️ IndexedDB 정리 실패 (무시):', e.message);
+      }
+    }
+    
+    // 5. 새 색상 선택 화면으로 이동
+    showColorSelectionScreen();
+    
+  } catch (error) {
+    console.error('❌ 새 콜라주 시작 중 오류:', error);
+    // 오류가 발생해도 기본 동작은 수행
+    currentSession = null;
+    currentColor = null;
+    photoCount = 0;
+    showColorSelectionScreen();
+  }
 }
 
 // 세션 리셋
@@ -2017,6 +2069,7 @@ function loadFallbackTranslations() {
       'main.whats_today_color': 'Let\'s Color Hunt together!',
       'main.discover_color': '1. Check your color of today\n2. Hunt your color during day\n3. Share it',
       'main.start': 'Hunt',
+      'main.start_hunt': 'Start Hunt',
       'main.choose_mode': 'Choose Your Mode',
       'main.nine_mode': 'Sqaure Mode',
       'main.unlimited_mode': 'Unlimited Mode (15 photos)',
@@ -2028,7 +2081,10 @@ function loadFallbackTranslations() {
       'color.blue': 'Blue',
       'color.indigo': 'Purple',
       'color.purple': 'Violet',
-
+      'color.pink': 'Pink',
+      'color.tan': 'Tan', 
+      'color.beige': 'Beige',
+      'color.matcha': 'Matcha',
       'color.black': 'Black',
       'color.what_is_your_color': 'What is your {{color}}?',
       'color.get_another_color': 'Get Another Color',
@@ -2059,12 +2115,13 @@ function loadFallbackTranslations() {
       'picture.delete': 'Delete',
       'picture.take_photo': 'Take Photo',
       'picture.take_picture': 'Take Picture {{number}}',
-      'alert.take_all_photos': 'Take at least 9 photos to complete ({{count}}/9)'
+      'alert.take_all_photos': 'Fill all slots to complete your collage'
     },
     ko: {
       'main.whats_today_color': '함께 컬러헌트해요!',
       'main.discover_color': '1. 오늘의 색깔을 확인하세요\n2. 하루 종일 색깔을 찾아보세요\n3. 공유해보세요',
       'main.start': '시작하기',
+      'main.start_hunt': '헌트 시작',
       'main.choose_mode': '모드를 선택하세요',
       'main.nine_mode': '정방형 모드',
       'main.unlimited_mode': '무제한 모드 (15장)',
@@ -2076,7 +2133,10 @@ function loadFallbackTranslations() {
       'color.blue': '파랑',
       'color.indigo': '보라',
       'color.purple': '자주',
-
+      'color.pink': '분홍',
+      'color.tan': '황갈색',
+      'color.beige': '베이지',
+      'color.matcha': '말차',
       'color.black': '검정',
       'color.what_is_your_color': '당신의 {{color}}은 무엇인가요?',
       'color.get_another_color': '다른 색깔 받기',
@@ -2107,7 +2167,7 @@ function loadFallbackTranslations() {
       'picture.delete': '삭제',
       'picture.take_photo': '사진 촬영',
       'picture.take_picture': '{{number}}번째 사진 촬영',
-      'alert.take_all_photos': '완성하려면 최소 9장 필요 ({{count}}/9)'
+      'alert.take_all_photos': '모든 슬롯을 채워서 콜라주를 완성하세요'
     }
   };
   
@@ -2238,9 +2298,9 @@ function parseCSVLine(line) {
 
 // 다국어 텍스트 가져오기 (t 함수)
 function t(key, params = {}) {
-  if (!isI18nLoaded) {
-    // 로딩 중이면 키를 그대로 반환
-    return key;
+  // i18nData가 비어있으면 fallback 강제 로드
+  if (!i18nData.en || Object.keys(i18nData.en).length === 0) {
+    loadFallbackTranslations();
   }
   
   const langData = i18nData[currentLanguage] || i18nData.en;

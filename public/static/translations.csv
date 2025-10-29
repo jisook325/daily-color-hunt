@@ -1,6 +1,7 @@
 main.whats_today_color,"Let's Color Hunt together!",함께 컬러헌트해요!
 main.discover_color,"1. Check your color of today\n2. Hunt your color during day\n3. Share it","1. 오늘의 색깔을 확인하세요\n2. 하루 종일 색깔을 찾아보세요\n3. 공유해보세요"
 main.start,"Hunt",시작하기
+main.start_hunt,"Start Hunt",헌트 시작
 main.choose_mode,"Choose Your Mode",모드를 선택하세요
 main.nine_mode,"Confirm",확인
 main.unlimited_mode,"Unlimited Mode (15 photos)",무제한 모드 (15장)
@@ -48,7 +49,7 @@ picture.back,"Back",뒤로가기
 picture.delete,"Delete",삭제
 picture.take_photo,"Take Photo","사진 촬영"
 picture.take_picture,"Take Picture {{number}}","{{number}}번째 사진 촬영"
-alert.take_all_photos,"Take at least 9 photos to complete ({{count}}/9)","완성하려면 최소 9장 필요 ({{count}}/9)"
+alert.take_all_photos,"Fill all slots to complete your collage","모든 슬롯을 채워 콜라주를 완성하세요"
 complete.congratulations,"🎉 Color Complete!","🎉 컬러 완성!"
 complete.save_color,"Save Color","컬러 저장"
 complete.my_colors,"My Colors","내 컬러들"

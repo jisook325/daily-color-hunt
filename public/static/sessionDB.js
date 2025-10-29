@@ -128,11 +128,13 @@ class ColorHuntSessionDB {
       
       const photoRecord = {
         id: photoData.id || `photo_${Date.now()}_${Math.random().toString(36).substring(2)}`,
+        userId: photoData.userId, // 🔥 사용자 ID 추가 (세션 연결 강화)
         sessionId: photoData.sessionId,
         position: photoData.position,
-        imageData: photoData.imageData,
-        thumbnailData: photoData.thumbnailData,
-        timestamp: Date.now(),
+        imageData: photoData.imageData || photoData.image_data, // 호환성
+        thumbnailData: photoData.thumbnailData || photoData.thumbnail_data, // 호환성  
+        color: photoData.color, // 색상 정보도 저장
+        timestamp: photoData.timestamp || Date.now(),
         saved_at: new Date().toISOString()
       };
       

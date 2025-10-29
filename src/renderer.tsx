@@ -4,10 +4,10 @@ import { jsxRenderer } from 'hono/jsx-renderer'
 const seoData = {
   en: {
     title: 'Color Hunt - Daily Color Discovery',
-    description: 'Find today\'s color in real life and create a beautiful 9-photo collage! Play with friends, capture memories, and discover colors around you. Auto-save your collages to your mobile album.',
+    description: 'Find today\'s color in real life and create a beautiful photo collage! Play with friends, capture memories, and discover colors around you. Auto-save your collages to your mobile album.',
     keywords: 'color hunt, photo collage, daily challenge, color discovery, photography game, mobile app, friends game, memory creation, color matching, photo album',
     ogTitle: 'Color Hunt - Daily Color Discovery',
-    ogDescription: 'Discover today\'s color in real life! Create stunning 9-photo collages with auto-save feature. Perfect for friends, couples, and memory-making.',
+    ogDescription: 'Discover today\'s color in real life! Create stunning photo collages with auto-save feature. Perfect for friends, couples, and memory-making.',
     twitterTitle: 'Color Hunt - Daily Color Discovery',
     twitterDescription: 'Find colors, take photos, create collages! Auto-save your memories in this fun daily color challenge.'
   },
@@ -158,18 +158,17 @@ export const renderer = jsxRenderer(({ children, ...props }) => {
                     'alan': ['Alan Sans', 'sans-serif']
                   },
                   colors: {
-                    'color-red': '#FF3333',
-                    'color-orange': '#FFCC99', 
-                    'color-yellow': '#FFF2CC',
-                    'color-green': '#C6E2C7',
-                    'color-blue': '#B3D3FF',
-                    'color-lavender': '#C7B3EB',
-                    'color-purple': '#E0B3FF',
+                    'color-red': '#D72638',
+                    'color-orange': '#FF8C42', 
+                    'color-yellow': '#F4B400',
+                    'color-green': '#2E8B57',
+                    'color-blue': '#007ACC',
+                    'color-purple': '#6C2DC7',
                     'color-white': '#FEFEFE',
                     'color-black': '#2D2D2D',
-                    'color-pink': '#ffbde4',
-                    'color-tan': '#D2B48C',
-                    'color-beige': '#A67B5B',
+                    'color-pink': '#E75480',
+                    'color-tan': '#A67C52',
+                    'color-beige': '#8B5E3C',
                     'color-matcha': '#82A860'
                   }
                 }
