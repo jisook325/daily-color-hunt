@@ -1453,18 +1453,34 @@ async function capturePhoto(position) {
     
     console.log(`📸 사진 캡처 완료: Original=${originalSize}x${originalSize}, Thumbnail=${thumbnailSize}x${thumbnailSize}`);
     
-    // 서버에 저장
-    await savePhoto(position, imageData, thumbnailData);
+    // Save to server with timeout protection
+    try {
+      const savePromise = savePhoto(position, imageData, thumbnailData);
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Save timeout after 10 seconds')), 10000);
+      });
+      
+      await Promise.race([savePromise, timeoutPromise]);
+      
+    } catch (saveError) {
+      console.error('❌ Photo save failed:', saveError);
+      showError('Photo save failed. Please try again.');
+    }
     
   } catch (error) {
-    console.error('❌ 캔버스 그리기 실패:', error);
-    showError('사진 처리 중 오류가 발생했습니다: ' + error.message);
-    return;
+    console.error('❌ Canvas drawing failed:', error);
+    showError('Photo processing failed: ' + error.message);
+  } finally {
+    // Always ensure camera is stopped and view is closed
+    console.log('🔄 Cleaning up camera resources');
+    stopCamera();
+    
+    // Force close camera view with delay to prevent freezing
+    setTimeout(() => {
+      closeCameraView();
+      hideLoading(); // Ensure loading overlay is removed
+    }, 100);
   }
-  
-  // 카메라 정지 및 화면 닫기
-  stopCamera();
-  closeCameraView();
 }
 
 // 사진 저장 - 디버깅 강화
@@ -1570,11 +1586,25 @@ async function savePhoto(position, imageData, thumbnailData) {
     
     hideLoading();
     
+    // Success message (English only)
+    showSuccess('Photo saved');
+    
     // URL 업데이트 (사진 개수 반영)
     navigateToProgress(currentColor, photoCount);
     
     // 진행률 업데이트
     updateProgress();
+    
+    // 강제 UI 새로고침
+    setTimeout(() => {
+      const slot = document.getElementById(`slot-${position}`);
+      if (slot && !slot.classList.contains('filled')) {
+        console.log(`🔄 슬롯 ${position} UI 강제 업데이트`);
+        slot.innerHTML = `<img src="${thumbnailData}" alt="Photo ${position}">`;
+        slot.classList.add('filled');
+        slot.setAttribute('data-photo-id', response.data.photoId);
+      }
+    }, 100);
     
     // GA 이벤트 추적
     trackEvent('photo_captured', {
@@ -1597,11 +1627,11 @@ async function savePhoto(position, imageData, thumbnailData) {
     // 완성 대기 화면에서는 토스트 제거 (조용한 저장)
     
   } catch (error) {
-    console.error('사진 저장 오류:', error);
+    console.error('❌ 사진 저장 오류:', error);
     hideLoading();
     
     // 더 자세한 오류 메시지 처리
-    let errorMessage = 'Failed to save photo';
+    let errorMessage = '❌ 사진 저장 실패';
     
     if (error.response) {
       // 서버에서 응답한 오류
@@ -1615,7 +1645,7 @@ async function savePhoto(position, imageData, thumbnailData) {
       } else if (status === 507) {
         errorMessage = 'Storage limit exceeded. Please contact support.';
       } else if (data && data.error) {
-        errorMessage = data.error;
+        errorMessage = `❌ ${data.error}`;
       } else {
         errorMessage = `Server error (${status})`;
       }
@@ -1624,6 +1654,16 @@ async function savePhoto(position, imageData, thumbnailData) {
     }
     
     showError(errorMessage);
+    
+    // Check if photo was actually saved in database (after 2 seconds)
+    // Prevent infinite loops by limiting retry attempts
+    if (!window.photoRetryAttempts) window.photoRetryAttempts = {};
+    if (!window.photoRetryAttempts[position] || window.photoRetryAttempts[position] < 2) {
+      window.photoRetryAttempts[position] = (window.photoRetryAttempts[position] || 0) + 1;
+      setTimeout(() => {
+        checkPhotoSaved(position);
+      }, 2000);
+    }
   }
 }
 
@@ -2469,12 +2509,71 @@ function showError(message) {
   showToast(`❌ ${message}`, 'error');
 }
 
+// 성공 메시지 표시
+function showSuccess(message) {
+  showToast(`✅ ${message}`, 'success');
+}
+
+// Check if photo was saved in database (with timeout to prevent freezing)
+async function checkPhotoSaved(position) {
+  try {
+    console.log(`🔍 Checking photo ${position} save status...`);
+    
+    // Add timeout to prevent hanging requests
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+    
+    const response = await axios.get(`/api/session/current/${currentUser}`, {
+      signal: controller.signal,
+      timeout: 5000
+    });
+    clearTimeout(timeoutId);
+    
+    if (response.data.session && response.data.session.photos) {
+      const savedPhoto = response.data.session.photos.find(p => p.position === position);
+      
+      if (savedPhoto) {
+        console.log(`✅ Photo ${position} confirmed saved in DB!`);
+        
+        // Force UI update only if not already filled
+        const slot = document.getElementById(`slot-${position}`);
+        if (slot && !slot.classList.contains('filled')) {
+          slot.innerHTML = `<img src="${savedPhoto.thumbnail_data}" alt="Photo ${position}">`;
+          slot.classList.add('filled');
+          slot.setAttribute('data-photo-id', savedPhoto.id);
+          
+          showSuccess('Photo recovered');
+        }
+        
+        // Update global state safely
+        currentSession = response.data.session;
+        photoCount = currentSession.photos.length;
+        
+        // Update progress
+        updateProgress();
+        
+      } else {
+        console.warn(`⚠️ Photo ${position} not found in database`);
+        showError(`Photo ${position} not saved. Please try again.`);
+      }
+    }
+    
+  } catch (error) {
+    if (error.name === 'AbortError') {
+      console.warn('Photo check request timed out');
+    } else {
+      console.error('Photo save status check failed:', error);
+    }
+  }
+}
+
 // 토스트 메시지
 function showToast(message, type = 'info', duration = 3000) {
   const toast = document.createElement('div');
   toast.className = `fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 transition-all duration-300 transform translate-x-full`;
   
   const bgColor = type === 'error' ? 'bg-red-500' : type === 'success' ? 'bg-green-500' : 'bg-blue-500';
+  const fontSize = window.innerWidth < 768 ? 'text-sm' : 'text-base'; // 모바일 최적화
   toast.className += ` ${bgColor} text-white`;
   toast.textContent = message;
   
