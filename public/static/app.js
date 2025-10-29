@@ -1102,9 +1102,9 @@ function openCameraForPosition(position) {
         </button>
       </div>
       
-      <!-- 정방형 카메라 프리뷰 -->
-      <div class="square-camera-container">
-        <div class="square-preview-frame">
+      <!-- 정방형 카메라 프리뷰 (컨테이너 빗어나가지 않도록) -->
+      <div class="square-camera-container" style="position: relative; overflow: hidden;">
+        <div class="square-preview-frame" style="overflow: hidden;">
           <video id="cameraPreview" class="square-video" autoplay playsinline></video>
         </div>
       </div>
@@ -1131,6 +1131,21 @@ function closeCameraView() {
   showCollageScreen();
 }
 
+// 줌 관련 전역 변수
+let currentZoom = 1.0;
+let minZoom = 1.0;
+let maxZoom = 3.0;
+let videoTrack = null;
+let supportsCameraZoom = false;
+let lastTouchDistance = 0;
+let isZooming = false;
+
+// 성능 최적화 변수
+let zoomDebounceTimer = null;
+let lastCSSZoom = 1.0;
+let targetHardwareZoom = 1.0;
+let isApplyingHardwareZoom = false;
+
 // 카메라 시작
 async function startCamera() {
   try {
@@ -1147,19 +1162,13 @@ async function startCamera() {
     
     video.srcObject = stream;
     mediaStream = stream;
+    videoTrack = stream.getVideoTracks()[0];
     
-    // 터치 이벤트 기본 동작 방지 (페이지 확대/줌 방지)
-    video.addEventListener('touchstart', (e) => {
-      e.preventDefault();
-    }, { passive: false });
+    // 카메라 줌 지원 여부 확인
+    checkCameraZoomSupport();
     
-    video.addEventListener('touchmove', (e) => {
-      e.preventDefault();
-    }, { passive: false });
-    
-    video.addEventListener('touchend', (e) => {
-      e.preventDefault();
-    }, { passive: false });
+    // 줌 컨트롤 초기화
+    initZoomControls(video);
     
   } catch (error) {
     console.error('카메라 접근 오류:', error);
@@ -1167,22 +1176,248 @@ async function startCamera() {
   }
 }
 
+// 카메라 하드웨어 줌 지원 확인
+async function checkCameraZoomSupport() {
+  if (!videoTrack) return;
+  
+  try {
+    const capabilities = videoTrack.getCapabilities();
+    if (capabilities.zoom) {
+      supportsCameraZoom = true;
+      minZoom = Math.max(capabilities.zoom.min || 1.0, 1.0); // 최소 1.0으로 제한
+      maxZoom = Math.min(capabilities.zoom.max || 3.0, 5.0); // 최대 5배로 제한
+      console.log('🔍 Hardware zoom supported:', minZoom, '-', maxZoom);
+    } else {
+      console.log('📱 Using CSS transform zoom');
+      minZoom = 1.0; // CSS 줌도 1.0 최소값
+      maxZoom = 3.0;
+    }
+  } catch (error) {
+    console.log('📱 Fallback to CSS transform zoom');
+    minZoom = 1.0; // 폴백시에도 1.0 최소값
+    maxZoom = 3.0;
+  }
+}
+
+// 줌 컨트롤 초기화 (고성능 최적화된 핀치)
+function initZoomControls(video) {
+  let touches = [];
+  let lastUpdate = 0;
+  const THROTTLE_MS = 16; // 60fps 제한 (16ms)
+  
+  video.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    touches = Array.from(e.touches);
+    
+    if (touches.length === 2) {
+      isZooming = true;
+      lastTouchDistance = getTouchDistance(touches[0], touches[1]);
+      lastUpdate = performance.now();
+      
+      // 핀치 시작 시 디바운싱 타이머 취소
+      if (zoomDebounceTimer) {
+        clearTimeout(zoomDebounceTimer);
+        zoomDebounceTimer = null;
+      }
+    }
+  }, { passive: false });
+  
+  video.addEventListener('touchmove', (e) => {
+    e.preventDefault();
+    touches = Array.from(e.touches);
+    
+    if (isZooming && touches.length === 2) {
+      // 60fps 쓰로틀링 (성능 최적화)
+      const now = performance.now();
+      if (now - lastUpdate < THROTTLE_MS) {
+        return; // 너무 빠른 이벤트 무시
+      }
+      lastUpdate = now;
+      
+      const currentDistance = getTouchDistance(touches[0], touches[1]);
+      const zoomDelta = currentDistance / lastTouchDistance;
+      
+      // 단계별 줌 변화 제한 (부드러운 조절)
+      const clampedDelta = Math.max(0.95, Math.min(1.05, zoomDelta));
+      
+      // 새로운 줌 레벨 계산
+      let newZoom = currentZoom * clampedDelta;
+      newZoom = Math.max(minZoom, Math.min(maxZoom, newZoom));
+      
+      // 즉시 CSS 줌 적용 (고성능)
+      applyInstantCSSZoom(newZoom);
+      
+      lastTouchDistance = currentDistance;
+    }
+  }, { passive: false });
+  
+  video.addEventListener('touchend', (e) => {
+    e.preventDefault();
+    touches = Array.from(e.touches);
+    
+    if (touches.length < 2) {
+      isZooming = false;
+      
+      // 핀치 완료 후 디바운싱된 하드웨어 줌 적용
+      scheduleHardwareZoom(currentZoom);
+    }
+  }, { passive: false });
+}
+
+// 두 터치 포인트 간 거리 계산
+function getTouchDistance(touch1, touch2) {
+  const dx = touch1.clientX - touch2.clientX;
+  const dy = touch1.clientY - touch2.clientY;
+  return Math.sqrt(dx * dx + dy * dy);
+}
+
+// 즉시 CSS 줌 (핀치 중 빠른 성능) - requestAnimationFrame 최적화
+function applyInstantCSSZoom(zoomLevel) {
+  // 줌 범위 제한
+  zoomLevel = Math.max(minZoom, Math.min(maxZoom, zoomLevel));
+  currentZoom = zoomLevel;
+  lastCSSZoom = zoomLevel;
+  
+  // 이전 애니메이션 프레임 취소 (프레임 드롭 방지)
+  if (animationFrameId) {
+    cancelAnimationFrame(animationFrameId);
+  }
+  
+  // requestAnimationFrame으로 부드러운 60fps 렌더링
+  animationFrameId = requestAnimationFrame(() => {
+    const video = document.getElementById('cameraPreview');
+    if (video) {
+      video.style.transform = `scale(${zoomLevel})`;
+      video.style.transformOrigin = 'center center';
+    }
+    animationFrameId = null; // 완료 후 리셋
+  });
+}
+
+// 디바운싱된 하드웨어 줌 예약
+function scheduleHardwareZoom(targetZoom) {
+  targetHardwareZoom = targetZoom;
+  
+  // 기존 타이머 취소
+  if (zoomDebounceTimer) {
+    clearTimeout(zoomDebounceTimer);
+  }
+  
+  // 300ms 후 하드웨어 줌 적용
+  zoomDebounceTimer = setTimeout(() => {
+    applyHardwareZoom(targetHardwareZoom);
+  }, 300);
+}
+
+// 하드웨어 줌 적용 (비동기)
+async function applyHardwareZoom(zoomLevel) {
+  if (isApplyingHardwareZoom) return; // 중복 실행 방지
+  
+  zoomLevel = Math.max(minZoom, Math.min(maxZoom, zoomLevel));
+  
+  // 하드웨어 줌 시도
+  if (supportsCameraZoom && videoTrack) {
+    try {
+      isApplyingHardwareZoom = true;
+      
+      await videoTrack.applyConstraints({
+        advanced: [{ zoom: zoomLevel }]
+      });
+      
+      console.log('🔍 Hardware zoom applied:', zoomLevel.toFixed(2) + 'x');
+      
+      // 하드웨어 줌 성공 시 CSS 리셋
+      const video = document.getElementById('cameraPreview');
+      if (video) {
+        video.style.transform = 'scale(1.0)';
+      }
+      
+    } catch (error) {
+      console.log('Hardware zoom failed, keeping CSS transform');
+      supportsCameraZoom = false; // 실패하면 CSS로 전환
+    } finally {
+      isApplyingHardwareZoom = false;
+    }
+  }
+  
+  // 하드웨어 줌이 지원되지 않으면 CSS 유지
+  if (!supportsCameraZoom) {
+    console.log('📱 Using CSS zoom:', zoomLevel.toFixed(2) + 'x');
+  }
+}
 
 
-// 카메라 정지
+
+// 카메라 정지 시 줌 리셋
 function stopCamera() {
   if (mediaStream) {
     mediaStream.getTracks().forEach(track => track.stop());
     mediaStream = null;
   }
+  
+  // 줌 상태 리셋
+  currentZoom = 1.0;
+  videoTrack = null;
+  supportsCameraZoom = false;
+  isZooming = false;
+  lastTouchDistance = 0;
+  
+  // 성능 최적화 변수 리셋
+  if (zoomDebounceTimer) {
+    clearTimeout(zoomDebounceTimer);
+    zoomDebounceTimer = null;
+  }
+  if (animationFrameId) {
+    cancelAnimationFrame(animationFrameId);
+    animationFrameId = null;
+  }
+  lastCSSZoom = 1.0;
+  targetHardwareZoom = 1.0;
+  isApplyingHardwareZoom = false;
 }
 
-// 사진 촬영 (정방형 크롭 및 리사이징)
-function capturePhoto(position) {
+
+
+
+
+// 사진 촬영 (정방형 크롭 및 리사이징) - 디버깅 강화
+async function capturePhoto(position) {
+  console.log(`🎯 capturePhoto 함수 호출됨 - position: ${position}`);
+  
   const video = document.getElementById('cameraPreview');
   const canvas = document.getElementById('captureCanvas');
   
-  if (!video || !canvas) return;
+  console.log(`📹 Video 요소:`, video);
+  console.log(`🖼️ Canvas 요소:`, canvas);
+  
+  if (!video || !canvas) {
+    console.error('❌ Video 또는 Canvas 요소를 찾을 수 없습니다');
+    showError('카메라 요소를 찾을 수 없습니다. 다시 시도해주세요.');
+    return;
+  }
+  
+  // 비디오가 준비될 때까지 대기
+  console.log(`📺 Video 상태: width=${video.videoWidth}, height=${video.videoHeight}, readyState=${video.readyState}`);
+  
+  if (video.videoWidth === 0 || video.videoHeight === 0) {
+    console.error('❌ 비디오 스트림이 준비되지 않았습니다');
+    showError('카메라 스트림이 준비되지 않았습니다. 잠시 후 다시 시도해주세요.');
+    return;
+  }
+  
+  // 하드웨어 줌 적용 중이면 완료될 때까지 대기 (최대 1초)
+  if (isApplyingHardwareZoom) {
+    console.log('⏳ 하드웨어 줌 적용 중... 대기합니다');
+    let waitCount = 0;
+    while (isApplyingHardwareZoom && waitCount < 20) {
+      await new Promise(resolve => setTimeout(resolve, 50));
+      waitCount++;
+    }
+    console.log(`✅ 하드웨어 줌 대기 완료 (${waitCount * 50}ms)`);
+  }
+  
+  // 현재 줌 레벨 로깅
+  console.log(`📸 줌 상태로 사진 촬영 시작: CSS줌=${video.style.transform}, 하드웨어줌=${targetHardwareZoom}`);
   
   const ctx = canvas.getContext('2d');
   
@@ -1196,43 +1431,71 @@ function capturePhoto(position) {
   canvas.width = originalSize;
   canvas.height = originalSize;
   
+  console.log(`🎯 캔버스 그리기 시작: 크롭 영역(${x}, ${y}, ${size}x${size}) → 캔버스(${originalSize}x${originalSize})`);
+  
   // 정방형으로 크롭하여 원본 생성
-  ctx.drawImage(video, x, y, size, size, 0, 0, originalSize, originalSize);
-  const imageData = canvas.toDataURL('image/jpeg', 0.85); // 품질 85%
-  
-  // 썸네일 생성 (200x200)
-  const thumbnailSize = 200;
-  const thumbnailCanvas = document.createElement('canvas');
-  thumbnailCanvas.width = thumbnailSize;
-  thumbnailCanvas.height = thumbnailSize;
-  const thumbCtx = thumbnailCanvas.getContext('2d');
-  
-  // 동일한 정방형 크롭으로 썸네일 생성
-  thumbCtx.drawImage(video, x, y, size, size, 0, 0, thumbnailSize, thumbnailSize);
-  const thumbnailData = thumbnailCanvas.toDataURL('image/jpeg', 0.8); // 품질 80%
-  
-  console.log(`📸 Photo captured: Original=${originalSize}x${originalSize}, Thumbnail=${thumbnailSize}x${thumbnailSize}`);
-  
-  // 서버에 저장
-  savePhoto(position, imageData, thumbnailData);
+  try {
+    ctx.drawImage(video, x, y, size, size, 0, 0, originalSize, originalSize);
+    const imageData = canvas.toDataURL('image/jpeg', 0.85); // 품질 85%
+    console.log(`✅ 원본 이미지 생성 완료: ${imageData.length} bytes`);
+    
+    // 썸네일 생성 (200x200)
+    const thumbnailSize = 200;
+    const thumbnailCanvas = document.createElement('canvas');
+    thumbnailCanvas.width = thumbnailSize;
+    thumbnailCanvas.height = thumbnailSize;
+    const thumbCtx = thumbnailCanvas.getContext('2d');
+    
+    // 동일한 정방형 크롭으로 썸네일 생성
+    thumbCtx.drawImage(video, x, y, size, size, 0, 0, thumbnailSize, thumbnailSize);
+    const thumbnailData = thumbnailCanvas.toDataURL('image/jpeg', 0.8); // 품질 80%
+    console.log(`✅ 썸네일 생성 완료: ${thumbnailData.length} bytes`);
+    
+    console.log(`📸 사진 캡처 완료: Original=${originalSize}x${originalSize}, Thumbnail=${thumbnailSize}x${thumbnailSize}`);
+    
+    // 서버에 저장
+    await savePhoto(position, imageData, thumbnailData);
+    
+  } catch (error) {
+    console.error('❌ 캔버스 그리기 실패:', error);
+    showError('사진 처리 중 오류가 발생했습니다: ' + error.message);
+    return;
+  }
   
   // 카메라 정지 및 화면 닫기
   stopCamera();
   closeCameraView();
 }
 
-// 사진 저장
+// 사진 저장 - 디버깅 강화
 async function savePhoto(position, imageData, thumbnailData) {
   try {
+    console.log('💾 savePhoto 함수 시작');
+    console.log(`📋 매개변수: position=${position}, imageData 길이=${imageData?.length}, thumbnailData 길이=${thumbnailData?.length}`);
+    
     showLoading('Saving photo...');
     
+    // 세션 및 사용자 검증 강화
+    console.log('🔍 세션 상태 확인:', { 
+      currentUser, 
+      currentSession: currentSession ? 'exists' : 'null',
+      sessionId: currentSession?.sessionId || currentSession?.id 
+    });
+    
+    if (!currentUser) {
+      throw new Error('사용자 정보가 없습니다. 다시 시작해주세요.');
+    }
+    
+    if (!currentSession) {
+      throw new Error('세션 정보가 없습니다. 다시 시작해주세요.');
+    }
+    
     // 세션 ID 확인 및 디버깅
-    console.log('Current session:', currentSession);
     const sessionId = currentSession.sessionId || currentSession.id;
-    console.log('Using session ID:', sessionId);
+    console.log('💾 검증된 데이터:', { sessionId, userId: currentUser, position });
     
     if (!sessionId) {
-      throw new Error('Session ID not found.');
+      throw new Error('세션 ID를 찾을 수 없습니다. 새로운 세션을 시작해주세요.');
     }
     
     const response = await axios.post('/api/photo/add', {
