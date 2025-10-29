@@ -1457,16 +1457,20 @@ async function savePhotoSimple(position, imageData, thumbnailData) {
     hideLoading();
     showSuccess('Photo saved');
     
+    // ✅ 성공 시에만 카메라 정리
+    stopCamera();
+    closeCameraView();
+    
   } catch (error) {
     console.error('❌ Save failed:', error);
     hideLoading();
     showError('Save failed');
-  } finally {
-    // 항상 카메라 정리
+    
+    // ❌ 실패해도 카메라 정리 (1초 후)
     setTimeout(() => {
       stopCamera();
       closeCameraView();
-    }, 200);
+    }, 1000);
   }
 }
 
