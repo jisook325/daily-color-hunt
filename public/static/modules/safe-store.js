@@ -1,4 +1,4 @@
-import { flushToIndexedDB } from './db.js';
+import { flushToIndexedDB } from '/static/modules/db.js';
 
 /**
  * iOS Safari 탭 전환 시 메모리 해제 방지

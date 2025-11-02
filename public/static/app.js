@@ -867,8 +867,12 @@ function showNineCollageScreen() {
     </div>
   `;
   
-  // 기존 사진 데이터 로드
-  if (currentSession && currentSession.photos) {
+  // 기존 사진 데이터 로드 - 개선된 시스템 우선
+  if (window.__IMPROVED_SYSTEM__) {
+    console.log('🔄 [showCollageScreen] Reloading from improved system');
+    loadExistingPhotos();
+  } else if (currentSession && currentSession.photos) {
+    console.log('🔄 [showCollageScreen] Reloading from memory');
     loadExistingPhotos();
   }
   
@@ -935,8 +939,12 @@ function showUnlimitedCollageScreen() {
     </div>
   `;
   
-  // 기존 사진 데이터 로드
-  if (currentSession && currentSession.photos) {
+  // 기존 사진 데이터 로드 - 개선된 시스템 우선
+  if (window.__IMPROVED_SYSTEM__) {
+    console.log('🔄 [showUnlimitedCollageScreen] Reloading from improved system');
+    loadExistingPhotos();
+  } else if (currentSession && currentSession.photos) {
+    console.log('🔄 [showUnlimitedCollageScreen] Reloading from memory');
     loadExistingPhotos();
   }
 }
@@ -978,9 +986,42 @@ function generatePhotoGrid() {
   return generateNinePhotoGrid();
 }
 
-// 기존 사진 로드
-function loadExistingPhotos() {
-  if (!currentSession.photos) return;
+// 기존 사진 로드 - 개선된 IndexedDB 시스템과 호환
+async function loadExistingPhotos() {
+  console.log('📂 [Legacy] loadExistingPhotos called');
+  
+  // 1️⃣ 개선된 시스템에서 사진 로드 시도
+  if (window.__IMPROVED_SYSTEM__) {
+    try {
+      const photos = await window.__IMPROVED_SYSTEM__.getPhotos();
+      console.log('✅ [Legacy] Loaded from improved system:', photos.length);
+      
+      photos.forEach(photo => {
+        const slot = document.getElementById(`slot-${photo.position}`);
+        if (slot && photo.thumbnailURL) {
+          slot.innerHTML = `<img src="${photo.thumbnailURL}" alt="Photo ${photo.position}">`;
+          slot.classList.add('filled');
+          slot.setAttribute('data-photo-id', photo.id);
+          console.log(`✅ [Legacy] Rendered slot ${photo.position} with Object URL`);
+        }
+      });
+      
+      // 사진 개수 재계산
+      photoCount = photos.length;
+      updateProgress();
+      
+      console.log('✅ [Legacy] All photos loaded, count:', photoCount);
+      return;
+    } catch (error) {
+      console.warn('⚠️ [Legacy] Improved system failed, falling back:', error);
+    }
+  }
+  
+  // 2️⃣ 폴백: 기존 메모리 시스템
+  if (!currentSession.photos) {
+    console.log('⚠️ [Legacy] No photos in currentSession');
+    return;
+  }
   
   currentSession.photos.forEach(photo => {
     const slot = document.getElementById(`slot-${photo.position}`);

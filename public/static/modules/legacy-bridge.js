@@ -3,10 +3,10 @@
  * 기존 app.js의 전역 변수/함수와 호환성 유지
  */
 
-import { initApp, getCurrentSessionId, getCurrentPhotos, addPhoto } from './init.js';
-import { capturePhotoToIndexedDB, loadPhotosFromIndexedDB } from './photo-capture.js';
-import { db } from './db.js';
-import { markSessionComplete } from './session-manager.js';
+import { initApp, getCurrentSessionId, getCurrentPhotos, addPhoto } from '/static/modules/init.js';
+import { capturePhotoToIndexedDB, loadPhotosFromIndexedDB } from '/static/modules/photo-capture.js';
+import { db } from '/static/modules/db.js';
+import { markSessionComplete } from '/static/modules/session-manager.js';
 
 // 기존 코드가 기대하는 전역 함수들을 export
 export async function initializeImprovedSystem() {
@@ -32,11 +32,13 @@ export async function capturePhotoImproved(position) {
     throw new Error('No active session');
   }
   
+  console.log('Saving photo', { position, sessionId }); // 디버깅 로그
+  
   try {
     // 개선된 캡처 시스템 사용
     const photoData = await capturePhotoToIndexedDB(position, video, sessionId);
     
-    console.log('✅ [Bridge] Photo captured:', photoData.id);
+    console.log('✅ [Bridge] Photo captured:', photoData.id, 'sessionId:', sessionId);
     
     // 전역 상태에 추가
     addPhoto(photoData);

@@ -1,4 +1,4 @@
-import { db, savePhotoToIndexedDB } from './db.js';
+import { db, savePhotoToIndexedDB } from '/static/modules/db.js';
 
 /**
  * 개선된 사진 촬영 시스템
@@ -66,10 +66,12 @@ export async function capturePhotoToIndexedDB(position, video, sessionId) {
   
   // Object URL 생성 (썸네일 표시용)
   const thumbnailURL = URL.createObjectURL(thumbnailBlob);
+  console.log('Creating URL for', id);
   
   // 정리 함수 반환
   const cleanup = () => {
     if (activeObjectURLs.has(id)) {
+      console.log('Revoking URL for', id);
       URL.revokeObjectURL(activeObjectURLs.get(id));
       activeObjectURLs.delete(id);
       console.log(`🧹 [Cleanup] Object URL revoked for ${id}`);
@@ -95,18 +97,27 @@ export async function capturePhotoToIndexedDB(position, video, sessionId) {
 export async function loadPhotosFromIndexedDB(sessionId) {
   console.log(`📂 [Load] Loading photos for session: ${sessionId}`);
   
+  // 데이터베이스 상태 확인
+  if (!db.isOpen()) {
+    console.warn('⚠️ Database is not open during load, attempting to open...');
+    await db.open();
+  }
+  
   const photos = await db.photos
     .where('sessionId')
     .equals(sessionId)
     .sortBy('position');
   
   console.log(`📊 IndexedDB photo count: ${photos.length}`);
+  console.log('Current thumbnails in DOM:', document.querySelectorAll('.unlimited-photo-slot.filled').length);
+  console.log('Rendering gallery with', photos.length, 'photos'); // 디버깅 로그
   
   const photoData = [];
   
   for (const photo of photos) {
     if (photo.blob) {
       const url = URL.createObjectURL(photo.blob);
+      console.log('Creating URL for', photo.id, 'position:', photo.position);
       activeObjectURLs.set(photo.id, url);
       
       photoData.push({

@@ -6,9 +6,9 @@
  * - Object URL 메모리 관리
  */
 
-import { initializeSession, loadSessionState } from './session-manager.js';
-import { registerSafeStore } from './safe-store.js';
-import { loadPhotosFromIndexedDB } from './photo-capture.js';
+import { initializeSession, loadSessionState } from '/static/modules/session-manager.js';
+import { registerSafeStore } from '/static/modules/safe-store.js';
+import { loadPhotosFromIndexedDB } from '/static/modules/photo-capture.js';
 
 let currentSessionId = null;
 let currentSessionData = null;

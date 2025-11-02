@@ -1,4 +1,4 @@
-import { db, getCurrentSession, saveSession } from './db.js';
+import { db, getCurrentSession, saveSession } from '/static/modules/db.js';
 
 /**
  * UUID 기반 세션 관리

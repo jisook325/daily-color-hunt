@@ -184,6 +184,9 @@ export const renderer = jsxRenderer(({ children, ...props }) => {
         <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
         <script src="https://cdn.jsdelivr.net/npm/dayjs@1.11.10/dayjs.min.js"></script>
         
+        {/* Dexie.js for IndexedDB */}
+        <script src="https://cdn.jsdelivr.net/npm/dexie@3.2.4/dist/dexie.min.js"></script>
+        
         {/* Safari 세션 보호를 위한 IndexedDB 유틸리티 */}
         <script src="/static/sessionDB.js"></script>
         
@@ -191,7 +194,7 @@ export const renderer = jsxRenderer(({ children, ...props }) => {
         <script src="/static/app.js?v=20251029-2"></script>
         
         {/* 개선된 시스템 모듈 (ES Module) */}
-        <script type="module" src="/src/app-improved.js"></script>
+        <script type="module" src="/static/modules/app-improved.js"></script>
       </body>
     </html>
   )
