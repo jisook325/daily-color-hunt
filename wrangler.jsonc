@@ -17,6 +17,10 @@
     {
       "binding": "R2",
       "bucket_name": "color-hunt-images"
+    },
+    {
+      "binding": "COLLAGE_R2",
+      "bucket_name": "webapp-collages"
     }
   ],
   "vars": {

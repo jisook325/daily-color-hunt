@@ -190,6 +190,9 @@ export const renderer = jsxRenderer(({ children, ...props }) => {
         {/* Safari 세션 보호를 위한 IndexedDB 유틸리티 */}
         <script src="/static/sessionDB.js"></script>
         
+        {/* 부팅 표시용 프로브(로드 여부 눈으로 확인) */}
+        <script src="/static/modules/probe.js"></script>
+        
         {/* 메인 앱 스크립트 - 캐시 버스팅 */}
         <script src="/static/app.js?v=20251029-2"></script>
         

@@ -761,6 +761,17 @@ async function confirmColor() {
   try {
     showLoading(t('alert.loading_session'));
     
+    // ✅ CRITICAL FIX: 새 세션 시작 시 개선된 시스템 재초기화
+    if (window.__IMPROVED_SYSTEM__) {
+      try {
+        console.log('🆕 [confirmColor] Starting new session in improved system');
+        await window.__IMPROVED_SYSTEM__.startNewSession();
+        console.log('✅ [confirmColor] Improved system reinitialized with new session');
+      } catch (e) {
+        console.warn('⚠️ [confirmColor] Failed to reinitialize improved system:', e);
+      }
+    }
+    
     const response = await axios.post('/api/session/start', {
       userId: currentUser,
       color: currentColor,
@@ -1912,13 +1923,63 @@ async function completeCollage() {
     // 콜라주 이미지 생성
     const collageData = await generateCollageImage();
     
-    // 세션 ID 확인
-    const sessionId = currentSession.sessionId || currentSession.id;
+    // 세션 ID 확인 (개선된 시스템 우선)
+    let sessionId = null;
+    if (window.__IMPROVED_SYSTEM__) {
+      try {
+        const debugInfo = await window.__IMPROVED_SYSTEM__.debug();
+        sessionId = debugInfo.sessionId;
+        console.log('✅ [Complete] Using sessionId from improved system:', sessionId);
+      } catch (e) {
+        console.warn('⚠️ [Complete] Failed to get sessionId from improved system:', e);
+      }
+    }
+    
+    // Fallback to legacy session
+    if (!sessionId) {
+      sessionId = currentSession.sessionId || currentSession.id;
+    }
+    
     if (!sessionId) {
       throw new Error('Session ID not found.');
     }
     
-    // 서버에 저장
+    // Base64 데이터를 Blob으로 변환
+    const base64Data = collageData.split(',')[1];
+    const byteCharacters = atob(base64Data);
+    const byteArrays = [];
+    
+    for (let offset = 0; offset < byteCharacters.length; offset += 512) {
+      const slice = byteCharacters.slice(offset, offset + 512);
+      const byteNumbers = new Array(slice.length);
+      for (let i = 0; i < slice.length; i++) {
+        byteNumbers[i] = slice.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      byteArrays.push(byteArray);
+    }
+    
+    const imageBlob = new Blob(byteArrays, { type: 'image/jpeg' });
+    console.log(`📦 [Complete] Image blob created: ${Math.round(imageBlob.size / 1024)}KB`);
+    
+    // FormData 생성하여 R2에 업로드
+    const formData = new FormData();
+    formData.append('image', imageBlob, `collage-${sessionId}.jpg`);
+    formData.append('sessionId', sessionId);
+    formData.append('userId', currentUser);
+    formData.append('color', currentColor);
+    formData.append('photoCount', actualPhotoCount.toString());
+    
+    console.log('☁️ [Complete] Uploading to R2...');
+    const uploadResponse = await axios.post('/api/collage/upload', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    });
+    
+    console.log('✅ [Complete] R2 upload successful:', uploadResponse.data);
+    
+    // 기존 레거시 저장 (호환성 유지)
     const response = await axios.post('/api/collage/complete', {
       sessionId: sessionId,
       collageData: collageData
@@ -2254,29 +2315,40 @@ async function startNewCollage() {
       }
     }
     
-    // 2. 메모리 변수 초기화
+    // 2. Dexie IndexedDB 정리 (개선된 시스템) ✅ CRITICAL FIX
+    if (window.__IMPROVED_SYSTEM__) {
+      try {
+        await window.__IMPROVED_SYSTEM__.cleanupSession();
+        console.log('✅ Dexie IndexedDB 세션 정리 완료');
+      } catch (e) {
+        console.warn('⚠️ Dexie 정리 실패:', e.message);
+      }
+    }
+    
+    // 3. 메모리 변수 초기화
     currentSession = null;
     currentColor = null;
     photoCount = 0;
     gameMode = 'unlimited'; // 15장 모드로 고정
     
-    // 3. localStorage 완전 정리
+    // 4. localStorage 완전 정리
     localStorage.removeItem('colorhunt_current_session');
     localStorage.removeItem('colorhunt_session_backup');
+    localStorage.removeItem('currentSessionId'); // Dexie 세션 ID도 제거
     console.log('🗑️ localStorage 세션 데이터 정리 완료');
     
-    // 4. IndexedDB 진행 중 세션 정리 (SafarI 보호)
+    // 5. 레거시 IndexedDB 진행 중 세션 정리 (Safari 보호)
     if (typeof ColorHuntSessionDB !== 'undefined') {
       try {
         const sessionDB = new ColorHuntSessionDB();
         await sessionDB.clearCompletedSession(currentUser);
-        console.log('🗑️ IndexedDB 완료된 세션 정리 완료');
+        console.log('🗑️ 레거시 IndexedDB 완료된 세션 정리 완료');
       } catch (e) {
-        console.warn('⚠️ IndexedDB 정리 실패 (무시):', e.message);
+        console.warn('⚠️ 레거시 IndexedDB 정리 실패 (무시):', e.message);
       }
     }
     
-    // 5. 새 색상 선택 화면으로 이동
+    // 6. 새 색상 선택 화면으로 이동
     showColorSelectionScreen();
     
   } catch (error) {

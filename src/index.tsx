@@ -22,6 +22,7 @@ const COLORS = [
 type Bindings = {
   DB: D1Database;
   R2: R2Bucket;
+  COLLAGE_R2: R2Bucket;
   GA_MEASUREMENT_ID?: string;
   GOOGLE_CLIENT_SECRET?: string;
 }
@@ -805,6 +806,74 @@ app.delete('/api/photo/:photoId', async (c) => {
 });
 
 // 6. 콜라주 완성 API
+// 완성 콜라주 이미지 업로드 및 저장
+app.post('/api/collage/upload', async (c) => {
+  const { env } = c;
+  
+  try {
+    const formData = await c.req.formData();
+    const imageFile = formData.get('image') as File;
+    const sessionId = formData.get('sessionId') as string;
+    const userId = formData.get('userId') as string;
+    const color = formData.get('color') as string;
+    const photoCount = parseInt(formData.get('photoCount') as string || '0');
+    
+    if (!imageFile || !sessionId || !userId || !color) {
+      return c.json({ error: 'Missing required fields' }, 400);
+    }
+    
+    // R2 키 생성 (날짜별 폴더 구조)
+    const date = new Date();
+    const dateStr = date.toISOString().split('T')[0]; // YYYY-MM-DD
+    const timestamp = Date.now();
+    const r2Key = `collages/${dateStr}/${sessionId}-${timestamp}.jpg`;
+    
+    // 이미지를 R2에 업로드
+    const arrayBuffer = await imageFile.arrayBuffer();
+    await env.COLLAGE_R2.put(r2Key, arrayBuffer, {
+      httpMetadata: {
+        contentType: 'image/jpeg'
+      }
+    });
+    
+    // 공개 URL 생성 (실제 환경에 맞게 조정 필요)
+    const collageUrl = `https://collages.colorhunt.app/${r2Key}`;
+    
+    // D1에 메타데이터 저장
+    const collageId = crypto.randomUUID();
+    await env.DB.prepare(`
+      INSERT INTO completed_collages 
+      (id, session_id, user_id, color, date, collage_url, r2_key, file_size, photo_count, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).bind(
+      collageId,
+      sessionId,
+      userId,
+      color,
+      dateStr,
+      collageUrl,
+      r2Key,
+      arrayBuffer.byteLength,
+      photoCount,
+      Math.floor(date.getTime() / 1000) // Unix timestamp in seconds
+    ).run();
+    
+    console.log(`✅ Collage uploaded: ${collageId}, R2 key: ${r2Key}, size: ${arrayBuffer.byteLength} bytes`);
+    
+    return c.json({
+      success: true,
+      collageId,
+      collageUrl,
+      r2Key,
+      fileSize: arrayBuffer.byteLength
+    });
+    
+  } catch (error: any) {
+    console.error('❌ Collage upload failed:', error);
+    return c.json({ error: 'Upload failed', message: error.message }, 500);
+  }
+});
+
 app.post('/api/collage/complete', async (c) => {
   const { env } = c;
   const { sessionId, collageData } = await c.req.json();
