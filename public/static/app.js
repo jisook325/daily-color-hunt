@@ -1146,6 +1146,7 @@ let isZooming = false;
 
 // 성능 최적화 변수
 let zoomDebounceTimer = null;
+let animationFrameId = null;
 let lastCSSZoom = 1.0;
 let targetHardwareZoom = 1.0;
 let isApplyingHardwareZoom = false;
@@ -1457,25 +1458,23 @@ async function savePhotoSimple(position, imageData, thumbnailData) {
     
     showSuccess('Photo saved');
     
-    // ✅ 먼저 화면 전환 (카메라는 아직 켜진 상태)
+    // ✅ 먼저 카메라 정리 (즉시)
+    stopCamera();
+    
+    // 화면 전환을 비동기로 실행
     requestAnimationFrame(() => {
-      // 화면 전환을 다음 프레임에 실행
+      // 화면 전환
       showCollageScreen();
-      
-      // 화면 전환 후 카메라 정리 (500ms 후)
-      setTimeout(() => {
-        stopCamera();
-      }, 500);
     });
     
-    // UI 업데이트 (화면 전환 후 실행)
+    // UI 업데이트 (화면 전환 완료 후 실행 - 긴 지연)
     setTimeout(() => {
       const slot = document.getElementById(`slot-${position}`);
       if (slot) {
         slot.innerHTML = `<img src="${thumbnailData}" alt="Photo ${position}">`;
         slot.classList.add('filled');
       }
-    }, 100);
+    }, 300);
     
   } catch (error) {
     console.error('❌ Save failed:', error);
