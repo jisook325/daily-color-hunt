@@ -189,6 +189,9 @@ export const renderer = jsxRenderer(({ children, ...props }) => {
         
         {/* 메인 앱 스크립트 - 캐시 버스팅 */}
         <script src="/static/app.js?v=20251029-2"></script>
+        
+        {/* 개선된 시스템 모듈 (ES Module) */}
+        <script type="module" src="/src/app-improved.js"></script>
       </body>
     </html>
   )
