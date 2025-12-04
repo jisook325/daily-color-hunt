@@ -3,10 +3,10 @@
  * 기존 app.js의 전역 변수/함수와 호환성 유지
  */
 
-import { initApp, getCurrentSessionId, getCurrentPhotos, addPhoto, clearSession, reinitializeSession } from '/static/modules/init.js';
+import { initApp, getCurrentSessionId, getCurrentPhotos, addPhoto } from '/static/modules/init.js';
 import { capturePhotoToIndexedDB, loadPhotosFromIndexedDB } from '/static/modules/photo-capture.js';
-import { db, cleanupSession } from '/static/modules/db.js';
-import { markSessionComplete, startNewSession } from '/static/modules/session-manager.js';
+import { db } from '/static/modules/db.js';
+import { markSessionComplete } from '/static/modules/session-manager.js';
 
 // 기존 코드가 기대하는 전역 함수들을 export
 export async function initializeImprovedSystem() {
@@ -67,36 +67,6 @@ export async function getSessionPhotos() {
   return await loadPhotosFromIndexedDB(sessionId);
 }
 
-// 세션 정리 (새 컬러 시작 시 사용)
-export async function cleanupCurrentSession() {
-  const sessionId = getCurrentSessionId();
-  if (sessionId) {
-    console.log('🧹 [Bridge] Cleaning up current session:', sessionId);
-    await cleanupSession(sessionId);
-    clearSession(); // 메모리 상태도 정리
-    console.log('✅ [Bridge] Session cleanup complete');
-  } else {
-    console.log('⚠️ [Bridge] No active session to cleanup');
-  }
-}
-
-// 새 세션 시작 (새 컬러를 받았을 때)
-export async function startNewColorSession() {
-  console.log('🆕 [Bridge] Starting new color session...');
-  
-  // 1. 이전 세션 정리
-  await cleanupCurrentSession();
-  
-  // 2. 새 UUID 생성 및 URL 업데이트
-  const newSessionId = startNewSession();
-  
-  // 3. 개선된 시스템 재초기화
-  const result = await reinitializeSession(newSessionId);
-  
-  console.log('✅ [Bridge] New color session started:', newSessionId);
-  return result;
-}
-
 // 디버깅용
 export async function debugInfo() {
   const sessionId = getCurrentSessionId();
@@ -122,8 +92,6 @@ if (typeof window !== 'undefined') {
     capturePhoto: capturePhotoImproved,
     completeSession,
     getPhotos: getSessionPhotos,
-    cleanupSession: cleanupCurrentSession,
-    startNewSession: startNewColorSession,
     debug: debugInfo
   };
 }

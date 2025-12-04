@@ -86,68 +86,6 @@ export async function flushToIndexedDB(currentSessionData, photosArray) {
   console.log('✅ Flush complete');
 }
 
-/**
- * 특정 세션의 모든 사진 삭제
- * @param {string} sessionId - 삭제할 세션 ID
- */
-export async function deleteSessionPhotos(sessionId) {
-  if (!sessionId) {
-    console.warn('⚠️ deleteSessionPhotos: sessionId is required');
-    return;
-  }
-  
-  console.log('🗑️ [DB] Deleting all photos for session:', sessionId);
-  
-  const photosToDelete = await db.photos.where('sessionId').equals(sessionId).toArray();
-  console.log('📊 [DB] Found', photosToDelete.length, 'photos to delete');
-  
-  await db.photos.where('sessionId').equals(sessionId).delete();
-  
-  console.log('✅ [DB] Session photos deleted:', sessionId);
-}
-
-/**
- * 특정 세션 삭제
- * @param {string} sessionId - 삭제할 세션 ID
- */
-export async function deleteSession(sessionId) {
-  if (!sessionId) {
-    console.warn('⚠️ deleteSession: sessionId is required');
-    return;
-  }
-  
-  console.log('🗑️ [DB] Deleting session:', sessionId);
-  
-  await db.sessions.delete(sessionId);
-  
-  console.log('✅ [DB] Session deleted:', sessionId);
-}
-
-/**
- * 완전한 세션 정리 (세션 + 사진)
- * @param {string} sessionId - 정리할 세션 ID
- */
-export async function cleanupSession(sessionId) {
-  if (!sessionId) {
-    console.warn('⚠️ cleanupSession: sessionId is required');
-    return;
-  }
-  
-  console.log('🧹 [DB] Cleaning up session:', sessionId);
-  
-  // 사진 먼저 삭제
-  await deleteSessionPhotos(sessionId);
-  
-  // 세션 메타데이터 삭제
-  await deleteSession(sessionId);
-  
-  // 전체 상태 확인
-  const remainingPhotos = await db.photos.count();
-  const remainingSessions = await db.sessions.count();
-  
-  console.log('✅ [DB] Cleanup complete. Remaining:', remainingPhotos, 'photos,', remainingSessions, 'sessions');
-}
-
 // 전역 접근 가능하도록 노출 (디버깅용)
 if (typeof window !== 'undefined') {
   window.db = db;

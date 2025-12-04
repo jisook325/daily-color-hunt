@@ -69,26 +69,3 @@ export async function markSessionComplete(sessionId) {
 export function shouldAutoComplete() {
   return false; // 항상 false - 자동 완료 금지
 }
-
-/**
- * 새 세션 시작 (기존 세션 정리 및 새 UUID 생성)
- * 새 컬러를 받았을 때 호출
- */
-export function startNewSession() {
-  console.log('🆕 [Session] Starting new session...');
-  
-  // 새 UUID 생성
-  const newSessionId = crypto.randomUUID();
-  console.log('🆕 [Session] New UUID:', newSessionId);
-  
-  // localStorage 업데이트
-  localStorage.setItem('currentSessionId', newSessionId);
-  
-  // URL 업데이트 (페이지 리로드 없이)
-  history.replaceState({}, '', `?s=${newSessionId}`);
-  
-  console.log('✅ [Session] New session started:', newSessionId);
-  console.log('sessionId', newSessionId);
-  
-  return newSessionId;
-}

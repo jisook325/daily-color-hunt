@@ -15,12 +15,12 @@
 
 ### 🎯 핵심 기능
 1. **랜덤 컬러 선택** - 9개 색상(무지개 7색 + 흰색 + 검정색) 중 랜덤 제안
-2. **세션 기반 콜라주** - UUID 기반 세션 관리 (?s={uuid}) + 새 세션 격리
+2. **세션 기반 콜라주** - UUID 기반 세션 관리 (?s={uuid})
 3. **실시간 카메라 촬영 + 줌 기능** - 웹 카메라를 통한 실시간 사진 촬영 및 핀치 줌 지원
 4. **3x5 그리드 콜라주** - 15장의 사진을 3x5 형태로 배열 (확장됨)
 5. **임시 저장** - 진행 중인 세션 자동 저장 및 복원
 6. **개별 사진 관리** - 각 사진 개별 삭제 및 재촬영
-7. **콜라주 완성 + R2 업로드** - 최종 이미지 생성 및 Cloudflare R2에 영구 저장
+7. **콜라주 완성** - 최종 이미지 생성 및 다운로드
 8. **이력 조회** - 완성한 콜라주 날짜별 조회
 9. **📱 핀치-투-줌** - 카메라 촬영 시 터치 제스처로 줌 인/아웃
 10. **🎨 다국어 지원** - 한국어/영어 자동 전환
@@ -54,8 +54,7 @@
 - `DELETE /api/photo/:photoId` - 개별 사진 삭제
 
 ### 콜라주 완성
-- `POST /api/collage/upload` - 완성 콜라주 이미지 R2 업로드 (FormData)
-- `POST /api/collage/complete` - 콜라주 메타데이터 저장 (레거시 호환)
+- `POST /api/collage/complete` - 콜라주 완성 및 저장
 
 ### 이력 관리
 - `GET /api/history/:userId` - 사용자별 콜라주 이력 조회
@@ -67,17 +66,15 @@
 - **collage_sessions** - 콜라주 세션 정보
 - **photos** - 개별 사진 데이터 (위치, 이미지, 썸네일)
 - **completed_collages** - 완성된 콜라주 메타데이터
-  - `photo_count`, `r2_key`, `file_size`, `collage_url` 컬럼 추가됨
 
 ### 클라이언트 스토리지 (IndexedDB via Dexie)
 - **photos** - 사진 Blob 데이터 (id, sessionId, blob, position, createdAt)
 - **sessions** - 세션 상태 (id, status, color, updatedAt)
 
 ### 스토리지 방식
-- **진행 중 이미지**: IndexedDB (썸네일만, 200x200)
-- **완성 이미지**: Cloudflare R2 (원본 JPEG)
-- **메타데이터**: Cloudflare D1 (세션 ID, 컬러, R2 키, 파일 크기)
-- **세션 관리**: URL 쿼리 파라미터 (?s={sessionId}) + IndexedDB 격리
+- **이미지 데이터**: IndexedDB (클라이언트) + R2/D1 (서버)
+- **사용자 식별**: 브라우저 로컬스토리지 기반 UUID
+- **세션 관리**: URL 쿼리 파라미터 (?s={sessionId}) + IndexedDB
 
 ## 🎮 사용자 가이드
 
@@ -123,13 +120,11 @@ await debugImprovedSystem();       // { sessionId, memoryPhotos, dbPhotos }
 
 ## 📋 아직 구현되지 않은 기능 (향후 계획)
 
-### ✅ 수정 완료 (2025-11-02)
-- **✅ IndexedDB 아키텍처 개선** - Dexie.js 기반 즉시 커밋 시스템
-- **✅ UUID 세션 관리** - 날짜 기반 → UUID 기반 세션 전환
-- **✅ 갤러리 렌더링 수정** - 사진 촬영 후 전체 갤러리 재렌더링
-- **✅ 세션 격리 버그 수정** - 새 컬러 받을 때 이전 사진 사라짐 문제 해결
-- **✅ R2 스토리지 활성화** - 완성 콜라주 Cloudflare R2에 영구 저장
-- **✅ D1 마이그레이션** - completed_collages 테이블에 R2 메타데이터 추가
+### 🚨 긴급 수정 사항
+- **✅ IndexedDB 아키텍처 개선** - Dexie.js 기반 즉시 커밋 시스템 (완료)
+- **✅ UUID 세션 관리** - 날짜 기반 → UUID 기반 세션 전환 (완료)
+- **✅ 갤러리 렌더링 수정** - 사진 촬영 후 전체 갤러리 재렌더링 (완료)
+- **🔍 실제 디바이스 테스트 필요** - iPhone Safari에서 사진 유지 여부 검증 필요
 
 ### Phase 2 - 소셜 기능  
 - **친구 시스템** - 팔로우 및 친구 추가
@@ -169,36 +164,22 @@ npm run dev:d1
 
 ## 🎯 추천 다음 단계
 
-### 🎯 우선순위 1
-1. **iPhone Safari 실제 테스트** - 새 세션 격리 및 R2 업로드 검증
-2. **PWA 아이콘 추가** - 실제 앱 아이콘 디자인 및 적용
-3. **Cloudflare Pages 배포** - 프로덕션 환경 설정
-4. **성능 최적화** - 이미지 압축 및 로딩 속도 개선
+### 🚨 우선순위 1 (긴급)
+1. **✅ 사진 촬영 오류 해결** - 데이터베이스 외래키 제약 조건 문제 (수정 완료)
+2. **✅ IndexedDB 아키텍처 개선** - Dexie.js + UUID 세션 (완료)
+3. **✅ 갤러리 렌더링 수정** - 전체 사진 재렌더링 로직 추가 (완료)
+4. **🔍 iPhone Safari 실제 테스트** - 사진 유지 여부 검증 필요
+5. **🧪 디버깅 로그 확인** - 콘솔에서 sessionId, DB count, Object URL 생성 확인
+
+### 📊 우선순위 2
+6. **R2 스토리지 활성화** - 더 효율적인 이미지 저장
+7. **PWA 아이콘 추가** - 실제 앱 아이콘 디자인 및 적용
+8. **Cloudflare Pages 배포** - 프로덕션 환경 설정
+9. **성능 최적화** - 이미지 압축 및 로딩 속도 개선
 
 ---
 
-**개발 완료**: 2025-11-02 (세션 격리 + R2 스토리지)  
-**버전**: MVP 1.3 (Dexie + UUID 세션 격리 + R2 업로드)  
-**상태**: ✅ 세션 격리 버그 수정 완료 + R2 영구 저장 구현
-**GitHub**: https://github.com/jisook325/daily-color-hunt
+**개발 완료**: 2025-11-02 (IndexedDB 아키텍처 개선)  
+**버전**: MVP 1.2 (Dexie + UUID 세션 + 갤러리 렌더링 수정)  
+**상태**: 실제 디바이스 테스트 대기 중 (iPhone Safari)  
 **라이선스**: MIT
-
-## 🐛 수정된 버그 (2025-11-02)
-
-### 문제: 새 컬러 받을 때 이전 사진 표시됨
-**증상:**
-1. 15장 촬영 완료
-2. 완료 후 저장
-3. 새로운 컬러 받음
-4. 새 세션에 이전 15장 이미지 노출
-5. 새로고침 시 이미지 0장으로 초기화
-
-**원인:** 
-- `confirmColor()` 함수가 새 세션 시작 시 개선된 시스템을 재초기화하지 않음
-- 이전 세션 ID가 메모리에 남아 `getPhotos()`가 이전 사진 반환
-
-**해결:**
-- `session-manager.js`에 `startNewSession()` 함수 추가 (새 UUID 생성 + URL 업데이트)
-- `init.js`에 `reinitializeSession()` 함수 추가 (메모리 정리 + 새 세션 로드)
-- `legacy-bridge.js`에 `startNewColorSession()` 노출
-- `confirmColor()` 함수 수정: 새 세션 시작 시 `window.__IMPROVED_SYSTEM__.startNewSession()` 호출
