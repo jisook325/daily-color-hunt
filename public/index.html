@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Daily Color Hunt</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <!-- GA4 스니펫: MEASUREMENT_ID 부분은 실제 ID로 교체 -->
+    <!-- 필요 없으면 이 블록 전체를 삭제해도 무방 -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXX"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag() {
+        dataLayer.push(arguments);
+      }
+      gtag('js', new Date());
+      gtag('config', 'G-XXXXXXX', {
+        // user_id는 analytics.ts에서 이벤트마다 붙습니다.
+      });
+    </script>
+
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <div id="app">
+      <header class="dch-header">
+        <h1>Daily Color Hunt</h1>
+        <p>오늘의 컬러를 찾아 콜라주를 만들어 보세요.</p>
+      </header>
+
+      <!-- 컬러 선택 영역 -->
+      <section class="dch-section">
+        <h2>1. 오늘의 컬러 받기</h2>
+        <div class="dch-color-row">
+          <div id="color-chip" class="dch-color-chip"></div>
+          <div class="dch-color-info">
+            <div id="color-code" class="dch-color-code">-</div>
+            <button id="btn-new-color" class="dch-button primary">
+              새로운 컬러 받기
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- 카메라/촬영 영역 -->
+      <section class="dch-section">
+        <h2>2. 컬러 사진 촬영 (최대 15장)</h2>
+        <div class="dch-camera-row">
+          <div class="dch-camera-preview">
+            <video
+              id="camera-video"
+              autoplay
+              playsinline
+              class="dch-video"
+            ></video>
+            <canvas
+              id="camera-canvas"
+              class="dch-hidden-canvas"
+            ></canvas>
+          </div>
+          <div class="dch-camera-controls">
+            <button id="btn-start-camera" class="dch-button secondary">
+              카메라 시작
+            </button>
+            <button id="btn-stop-camera" class="dch-button">
+              카메라 정지
+            </button>
+            <button id="btn-take-photo" class="dch-button primary">
+              사진 촬영
+            </button>
+            <div class="dch-progress">
+              <span id="photo-count">0</span> / 15 장
+            </div>
+          </div>
+        </div>
+
+        <div class="dch-photo-grid" id="photo-grid"></div>
+      </section>
+
+      <!-- 콜라주 생성/다운로드 영역 -->
+      <section class="dch-section">
+        <h2>3. 콜라주 생성 및 저장</h2>
+        <div class="dch-collage-row">
+          <div class="dch-collage-preview">
+            <canvas id="collage-canvas" class="dch-collage-canvas"></canvas>
+          </div>
+          <div class="dch-collage-controls">
+            <button id="btn-generate-collage" class="dch-button primary">
+              콜라주 생성
+            </button>
+            <button id="btn-download-collage" class="dch-button secondary">
+              콜라주 다운로드
+            </button>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
